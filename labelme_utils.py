@@ -1,3 +1,9 @@
+'''
+Author: Shuailin Chen
+Created Date: 2020-11-17
+Last Modified: 2021-03-25
+	content: 
+'''
 ''' last modefied: 2021-01-23 '''
 import os
 from shutil import Error
@@ -259,19 +265,25 @@ def get_label_statistics(src_path:str, label_names_all:Union[list, tuple]):
     return cls_cnt, change_cnt
 
 
-def generate_change_label(src_path:str, label_names_all:Union[list, tuple]):
+def generate_change_label(src_path:str, label_names_all:Union[list, tuple], sensor='GF3'):
     ''' 生成变化检测的label, label中黑色表示没有变化，白色表示存在变化，灰色表示没有标注，然后统计变化的像素，变化检测的label中 0 表示没有标注, 1 表示无变化, 2 表示存在变化。文件结构需要固定
         @in     -src_path       -标注文件存放的路径
         @ret    -change_cnt     -[变化的像素数量, 总的像素数量]
     '''
     change_cnt = np.zeros(2, dtype=np.uint32)
-
+    print('generating change label')
     for dirpath, sub_dirs, files in os.walk(src_path):   
         if 'pin.txt' in files:      # find the control points     
+            print('processing ', dirpath)
             for fdr_a, fdr_b in itertools.combinations(sub_dirs, 2):   #select two of all the folders
                 for json_folder in os.listdir(os.path.join(dirpath, fdr_a)):
                     if os.path.isdir(os.path.join(dirpath, fdr_a, json_folder)):
-                        number = json_folder[-9:-5]     # patch number，RS2 这里是 4 位数字，GF3这里是3位数字，需要注意
+                        if sensor == 'RS2': # patch number，RS2 这里是 4 位数字，GF3这里是3位数字，需要注意
+                            number = json_folder[-9:-5]
+                        elif sensor == 'GF3':
+                            number = json_folder[-8:-5]
+                        else:
+                            raise ValueError('undefined sensor type')   
 
                         # the folder A
                         lbl_idx_a, _  = read_label_png(os.path.join(dirpath, fdr_a, json_folder))
@@ -305,6 +317,8 @@ def check_label_name(src_path, lbl_names_all):
         @in     -src_path       - root path, all of whose files should be checked
                 -lbl_names_all  - specified name set
     '''
+    if not osp.isdir(src_path):
+        raise ValueError('not a valid path')
     for root, dirs, files in os.walk(src_path):
         for file in files:
             if '.json' in file:
@@ -312,7 +326,7 @@ def check_label_name(src_path, lbl_names_all):
                         data = json.load(f)
                         for shape in data["shapes"]:
                             label_name = shape["label"]
-                            if label_name not in label_names_all:
+                            if label_name not in lbl_names_all:
                                 print(f'undefined {label_name} in {osp.join(root, file)}')
 
     print('check done')
@@ -418,14 +432,14 @@ if __name__=='__main__':
     ''' ^^^^^^^^^^^^^这段最好不要改^^^^^^^^^^^^^^^^^^ '''
 
     # src_path = r'E:\BaiduNetdiskDownload\RADATSAT-2'
-    src_path = r'/data/csl/SAR_CD/RS2'
+    src_path = r'/data/csl/SAR_CD/GF3/label'
     
 
     # '''' >>>>>>>>>>   test generate_change_label() >>>>>>> '''
-    # check_label_name(src_path, label_names_all)
-    # json_to_dataset_batch(src_path, label_names_all)
-    # change_cnt = generate_change_label(src_path, label_names_all)
-    # print('change count:', change_cnt)
+    check_label_name(src_path, label_names_all)
+    json_to_dataset_batch(src_path, label_names_all)
+    change_cnt = generate_change_label(src_path, label_names_all, sensor='GF3')
+    print('change count:', change_cnt)
     cls_cnt, change_cnt  = get_label_statistics(src_path, label_names_all)
     print('class count:', cls_cnt, '\nchange detection count:', change_cnt)
     # '''' ^^^^^^^^^^^^^^^^   test generate_change_label() ^^ '''

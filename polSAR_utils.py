@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified:2021-01-25
+Last Modified: 2021-03-29
 '''
 import os
 from os import path
@@ -15,9 +15,11 @@ from mylib import file_utils as fu
 from typing import Union
 
 
-bin_files = ['C11.bin', 'C12_real.bin', 'C12_imag.bin', 'C13_real.bin', 
+c3_bin_files = ['C11.bin', 'C12_real.bin', 'C12_imag.bin', 'C13_real.bin', 
             'C13_imag.bin', 'C22.bin', 'C23_real.bin', 'C23_imag.bin',
             'C33.bin',]
+
+s2_bin_files = ['s11.bin', 's12.bin', 's21.bin', 's22.bin']
 
 hdr_elements = ['samples', 'lines', 'byte order', 'data type', 'interleave']
 
@@ -32,8 +34,29 @@ def check_c3_path(path:str)->str:
         path = os.path.join(path, 'C3')
     return path
 
+
+def check_s2_path(path:str)->str:
+    '''check the path whether contains the s2 folder, if not, add it'''
+    if path[-3:] != r'\s2' and path[-3:] != r'/s2' and (not osp.isfile(osp.join(path, 's11.bin'))):
+        path = os.path.join(path, 's2')
+    return path
+
+
+def read_s2_config(path:str)->dict:
+    ''' read header file of S2 file'''
+    path = check_s2_path(path)
+    s2_info = dict()
+    with open(osp.join(path, 'config.txt'), 'r') as f:
+        for ii in range(4):
+            key = f.readline().strip()
+            value = f.readline().strip()
+            s2_info[key] = value
+            f.readline()
+    return s2_info
+
+
 def read_hdr(path:str)->dict:
-    ''' read header file '''
+    ''' read header file of C3 file'''
     path = check_c3_path(path)
     meta_info = dict()
     with open(os.path.join(path, 'C11.bin.hdr'), 'r') as hdr:
@@ -62,7 +85,7 @@ def read_c3(path:str, out:str='complex_vector_6', meta_info=None, count=-1, offs
                         c33, cause the covariance matrix is conjugate symmeitric
             -meta_info  - meta info contains the .bin.hdr information
             -count      -Number of items to read. -1 means all items (i.e., the complete file).
-            -offset     -The offset (in bytes) from the file��s current position. 
+            -offset     -The offset (in bytes) from the files current position. 
     @out     -C3 data in the specified format, 3-D matrix shape of [channel x height x width]
     '''
 
@@ -121,24 +144,81 @@ def read_c3(path:str, out:str='complex_vector_6', meta_info=None, count=-1, offs
     return c3
 
 
-def write_config_hdr(path:str, config:Union[dict, list, tuple])->None:
+def read_s2(path:str, meta_info=None, count=-1, offset=0, is_print=None)->np.ndarray:
+    ''' read S2 data in envi data type
+    @in      -path       -path to S2 data
+    @in     -meta_info  - meta info contains the .bin.hdr information
+            -count      -Number of items to read. -1 means all items (i.e., the complete file).
+            -offset     -The offset (in bytes) from the files current position. 
+    @out     -S2 data in the torch.complex64 format, 3-D matrix shape of [channel x height x width]
+    '''
+    path = check_s2_path(path)
+    if is_print:
+        print('reading from ', path)
+
+    if meta_info is None:
+        meta_info = read_s2_config(path)
+
+    s11 = np.fromfile(osp.join(path, 's11.bin'), dtype=np.float32, count=count, offset=offset)
+    s12 = np.fromfile(osp.join(path, 's12.bin'), dtype=np.float32, count=count, offset=offset)
+    s21 = np.fromfile(osp.join(path, 's21.bin'), dtype=np.float32, count=count, offset=offset)
+    s22 = np.fromfile(osp.join(path, 's22.bin'), dtype=np.float32, count=count, offset=offset)
+
+    s11 = s11[0::2] + 1j*s11[1::2]
+    s12 = s12[0::2] + 1j*s12[1::2]
+    s21 = s21[0::2] + 1j*s21[1::2]
+    s22 = s22[0::2] + 1j*s22[1::2]
+
+    height = int(meta_info['Nrow'])
+    weight = int(meta_info['Ncol'])
+    s11 = s11.reshape(height, weight)
+    s12 = s12.reshape(height, weight)
+    s21 = s21.reshape(height, weight)
+    s22 = s22.reshape(height, weight)
+
+    s2 = np.stack((s11, s12, s21, s22), axis=0)
+    return s2
+
+
+def write_config_hdr(path:str, config:Union[dict, list, tuple], config_type='hdr')->None:
     """
     write config.txt file and Cxx.hdr file
-    @in     -path       -data path
-            -config     -config information require for .bin.hdr file, in a dict format
+    @in     -path           -data path
+            -config         -config information require for .bin.hdr file, in a dict format
+            -config_type    -config type, 'hdr' or 'cfg'
     """
-    if isinstance(config, dict):
-        lines = config['lines']
-        samples = config['samples']
-        datatype = config["data type"]
-        interleave = config["interleave"]
-        byteorder = config["byte order"]
-    elif isinstance(config, (list, tuple)):
-        lines = str(config[0])
-        samples = str(config[1])
-        datatype = '4'
-        interleave = 'bsq'
-        byteorder = '0'
+    if config_type=='hdr':
+        if isinstance(config, dict):
+            lines = config['lines']
+            samples = config['samples']
+            datatype = config["data type"]
+            interleave = config["interleave"]
+            byteorder = config["byte order"]
+        elif isinstance(config, (list, tuple)):
+            lines = str(config[0])
+            samples = str(config[1])
+            datatype = '4'
+            interleave = 'bsq'
+            byteorder = '0'
+            
+        for bin in c3_bin_files:
+            file_hdr = osp.join(path, bin + '.hdr')
+            with open(file_hdr, 'w') as hdr:
+                hdr.write('ENVI\ndescription = {File Imported into ENVI.}\n')
+                hdr.write(f'samples = {samples}\n')
+                hdr.write(f'lines = {lines}\n')
+                hdr.write('bands = 1\n')
+                hdr.write('header offset = 0\nfile type = ENVI Standard\n')
+                hdr.write(f'data type = {datatype}\n')
+                hdr.write(f'interleave = {interleave}\n')
+                hdr.write('sensor type = Unknown\n')
+                hdr.write(f'byte order = {byteorder}\n')
+                hdr.write(f'band names = {{{bin}}}\n')
+    elif config_type=='cfg':
+        lines = config['Nrow']
+        samples = config['Ncol']
+    else:
+        raise NotImplementedError
 
     with open(osp.join(path, 'config.txt'), 'w') as cfg:
         cfg.write('Nrow\n')     # nrow = lines, ncol = smaples
@@ -148,19 +228,6 @@ def write_config_hdr(path:str, config:Union[dict, list, tuple])->None:
         cfg.write('\n---------\n')
         cfg.write('PolarCase\nmonostatic\n---------\nPolarType\nfull')
     
-    for bin in bin_files:
-        file_hdr = osp.join(path, bin + '.hdr')
-        with open(file_hdr, 'w') as hdr:
-            hdr.write('ENVI\ndescription = {File Imported into ENVI.}\n')
-            hdr.write(f'samples = {samples}\n')
-            hdr.write(f'lines = {lines}\n')
-            hdr.write('bands = 1\n')
-            hdr.write('header offset = 0\nfile type = ENVI Standard\n')
-            hdr.write(f'data type = {datatype}\n')
-            hdr.write(f'interleave = {interleave}\n')
-            hdr.write('sensor type = Unknown\n')
-            hdr.write(f'byte order = {byteorder}\n')
-            hdr.write(f'band names = {{{bin}}}\n')
 
 
 def write_c3(path:str, data:ndarray, config:dict=None, is_print=False):    
@@ -176,19 +243,45 @@ def write_c3(path:str, data:ndarray, config:dict=None, is_print=False):
     if is_print:
         print('writing ', path)
 
-    # write config.txt
+    # write config.txt and *.bin.hdr file
     if config is not None:
         write_config_hdr(path, config)
 
     # write binary files
     if (isinstance(config, dict) and config['data type'] == '4') or isinstance(config, (list, tuple)):
         data = as_format(data, out='save_space')
-        for idx, bin in enumerate(bin_files):
+        for idx, bin in enumerate(c3_bin_files):
             fullpath = osp.join(path, bin)
             file = data[idx, :, :]
             file.tofile(fullpath)
     else:
         raise NotImplementedError('data type is not float32')
+
+
+def write_s2(path:str, data:ndarray, config:dict=None, is_print=False):    
+    ''' 
+    write s2 data 
+    @in     -path       -data path
+            -data       -the polSAR data
+            -config     -config information require for .bin.hdr file, in a dict format
+            -is_print   -whether to print the debug info
+    '''
+    # check input
+    if is_print:
+        print('writign ', path)
+
+    # write config.txt
+    if config is not None:
+        write_config_hdr(path, config, config_type='cfg')
+
+    # write binary files
+    if data.dtype==np.complex64:
+        for idx, bin in enumerate(s2_bin_files):
+            full_path = osp.join(path, bin)
+            file = data[idx, :, :]
+            file.tofile(full_path)
+    else:
+        raise NotImplementedError('data type should be np.complex64')
 
 
 def read_bmp(path:str, is_print=None)->np.ndarray:
@@ -302,7 +395,6 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli')->np.ndarray:
     @in      -data  -input polSAR data
     @in      -type  -'pauli' or 'sinclair'
     @out     -RGB data in [0, 255]
-    undone
     '''
     type = type.lower()
 
@@ -347,6 +439,78 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli')->np.ndarray:
     return np.stack((R, G, B), axis=2)
 
 
+def rgb_by_s2(data:np.ndarray, type:str='pauli')->np.ndarray:
+    ''' @brief   -create the pseudo RGB image with s2 matrix
+    @in      -data  -input polSAR data
+    @in      -type  -'pauli' or 'sinclair'
+    @out     -RGB data in [0, 255]
+    '''
+    type = type.lower()
+
+    R = np.zeros(data.shape[-2:], dtype=np.float32)
+    G = R.copy()
+    B = R.copy()
+
+    if type=='pauli':
+        s11 = data[0, :, :]
+        s12 = data[1, :, :]
+        s21 = data[2, :, :]
+        s22 = data[3, :, :]
+        R=0.5*np.conj(s11-s22)*(s11-s22)
+        G=0.5*np.conj(s12+s21)*(s12+s21)
+        B=0.5*np.conj(s11+s22)*(s11+s22)
+
+    # abs
+    R = np.abs(R)
+    G = np.abs(G)
+    B = np.abs(B)
+
+    # clip
+    R[R<np.finfo(float).eps] = np.finfo(float).eps
+    G[G<np.finfo(float).eps] = np.finfo(float).eps
+    B[B<np.finfo(float).eps] = np.finfo(float).eps
+
+    # logarithm transform, and normalize
+    R = 10*np.log10(R)
+    G = 10*np.log10(G)
+    B = 10*np.log10(B)
+    
+    R = min_max_contrast_median_map(R)
+    G = min_max_contrast_median_map(G)
+    B = min_max_contrast_median_map(B)
+
+    return np.stack((R, G, B), axis=2)
+
+
+def norm_3_sigma(data:np.ndarray, mean=None, std=None, type='complex'):
+    ''' standardization, moreover, if the value beyonds mean+3*sigma, clip it 
+    @in     -data       -PolSAR data, in CxHxWx... format
+            -type       -'complex': calculate the complex mean and var value, 'abs': calculate the absolute mean and var value
+    @ret    standardized data
+    '''
+    assert data.ndim>=3
+    ret = data.copy()
+
+    # absolute value of complex value
+    if type=='abs':
+        tmp = np.abs(ret)
+    elif type=='complex':
+        tmp = ret.copy()
+    else:
+        raise NotImplementedError
+
+    if mean is None:
+        mean = tmp.mean(axis=(-1, -2), keepdims=True)
+    if std is None: 
+        std = tmp.std(axis=(-1, -2), keepdims=True)
+    ret /= (mean+3*std)
+    ret_abs = np.abs(ret)
+    ret_abs[ret_abs<1] = 1
+    ret /= ret_abs
+
+    return mean, std, ret    
+
+    
 def min_max_contrast_median(data:np.ndarray):
     ''' @breif use the iterative method to get special min and max value
     @out    - min and max value in a tuple
@@ -455,11 +619,14 @@ def split_patch(path, patch_size=[512, 512], transpose=False)->None:
         cv2.imwrite(osp.join(path, 'PauliRGB.bmp'), whole_img)
     if transpose:
         whole_data = whole_data.transpose((0, 2, 1))
-        whole_img = whole_img.transpose((1, 0, 2))
+        whole_img = rgb_by_c3(whole_data)*255
+        whole_img = cv2.cvtColor(whole_img.astype(np.uint8), cv2.COLOR_RGB2BGR)
+        cv2.imwrite(osp.join(path, 'PauliRGB.bmp'), whole_img)
         tmp = whole_config['lines']
         whole_config['lines'] = whole_config['samples']
         whole_config['samples'] = tmp
         write_c3(path, whole_data, whole_config, is_print=True)
+        cv2.imwrite(osp.join(path, 'PauliRGB.bmp'), whole_img)
     whole_het, whole_wes = whole_img.shape[:2]
     idx = 0
     start_x = 0
@@ -495,6 +662,69 @@ def split_patch(path, patch_size=[512, 512], transpose=False)->None:
             start_x = whole_wes - p_wes      
 
 
+def split_patch_s2(path, patch_size=(512, 512), transpose=False)->None:
+    ''' 
+    split the who image into several patches 
+    @in     -path           -path to s2 data
+            -patch_size     -size of a patch, in [height, width] format
+            -tranpose       -whether to transpose the spatial axes of data
+    '''
+    path = check_s2_path(path)
+    print('spliting the dir: ', path)
+
+    whole_cfg = read_s2_config(path)
+    print('config: ', whole_cfg)
+    whole_data = read_s2(path, meta_info=whole_cfg)
+    whole_img = read_bmp(path)
+
+    if whole_img is None:
+        whole_img = rgb_by_s2(whole_data)*255
+        whole_img = cv2.cvtColor(whole_img.astype(np.uint8), cv2.COLOR_RGB2BGR)
+        cv2.imwrite(osp.join(path, 'PauliRGB.bmp'), whole_img)
+
+    if transpose:
+        whole_data = whole_data.transpose((0,2,1))
+        whole_img = rgb_by_s2(whole_data)*255
+        whole_img = cv2.cvtColor(whole_img.astype(np.uint8), cv2.COLOR_RGB2BGR)
+        cv2.imwrite(osp.join(path, 'PauliRGB.bmp'), whole_img)
+        whole_cfg['Nrow'], whole_cfg['Ncol'] = whole_cfg['Ncol'], whole_cfg['Nrow']
+        write_s2(path, whole_data, whole_cfg)
+
+    whole_het, whole_wes = int(whole_cfg['Nrow']), int(whole_cfg['Ncol'])
+    idx = 0
+    start_x = 0
+    start_y = 0
+    p_het, p_wes = patch_size
+    whole_cfg['Nrow'] = '512'
+    whole_cfg['Ncol'] = '512'
+    while start_x<whole_wes and start_y<whole_het:
+        print(f'    spliting the {idx}-th patch')
+
+        # write bin file
+        p_data = whole_data[:, start_y:start_y+p_het, start_x:start_x+p_wes]
+        p_folder = osp.join(path, str(idx))
+        fu.mkdir_if_not_exist(p_folder)
+        write_s2(p_folder, p_data, whole_cfg, is_print=True)
+
+        # write pauliRGB, which is cutted from big picture, not re-generated 
+        p_img = whole_img[start_y:start_y+p_het, start_x:start_x+p_wes, :]
+        cv2.imwrite(osp.join(p_folder, 'PauliRGB.bmp'), p_img)
+
+        # increase patch index
+        idx += 1
+        start_x += p_wes
+        if start_x >= whole_wes:      # next row
+            start_x = 0
+            start_y += p_het
+            if start_y>=whole_het:          # finish
+                print('totle split', idx, 'patches done')
+                return
+            elif start_y+p_het > whole_het: # suplement
+                start_y = whole_het - p_het
+        elif start_x+p_wes > whole_wes: 
+            start_x = whole_wes - p_wes   
+
+
 def Hokeman_decomposition(data:ndarray)->ndarray:
     ''' calculate the Hokeman decomposition, which transforms the C3 matrix into 9 independent SAR intensities 
     @in     -data           -data to be transformed, in [channel, height, width] format
@@ -520,31 +750,38 @@ def Hokeman_decomposition(data:ndarray)->ndarray:
 
 
 if __name__=='__main__':
-    
-    ''' test split_patch() func '''
-    # path = r'/data/csl/SAR_CD/GF3/data'
-    # for root, subdirs, files in os.walk(path):
-    #     if 'C3' == root[-2:]:
-            # split_patch(root)
+    ''' test read_s2() func '''
+    # path = r'data/SAR_CD/GF3/data/E139_N35_日本横滨/降轨/1/20190615/s2'
+    # path = r'./tmp/s2'
+    # save_path = r'./tmp'
+    # a = read_s2(path)
+    # ps = rgb_by_s2(a)
+    # print(cv2.imwrite(osp.join(save_path, 'pauli_s2.png'), cv2.cvtColor(np.transpose((255*ps), (1,0,2)).astype(np.uint8), cv2.COLOR_BGR2RGB)))
+
+
+    ''' test split_patch_s2() func '''
+    path = r'/data/csl/SAR_CD/GF3/data'
+    for root, subdirs, files in os.walk(path):
+        if 's2' == root[-2:]:
+            split_patch_s2(root, transpose=True)
     ''' test split_patch() func '''
 
 
     ''' test Hokeman_decomposition() func '''
-    path = r'/home/csl/data/AIRSAR_Flevoland/C3/'
-    save_path = r'./tmp'
-    c3 = read_c3(path, out='save_space')
-    rgb = rgb_by_c3(c3)
-    rgb = (255*rgb).astype(np.uint8)
-    cv2.imwrite(osp.join(save_path, 'pauli.png'), cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
+    # path = r'/home/csl/data/AIRSAR_Flevoland/C3/'
+    # save_path = r'./tmp'
+    # c3 = read_c3(path, out='save_space')
+    # rgb = rgb_by_c3(c3)
+    # rgb = (255*rgb).astype(np.uint8)
+    # cv2.imwrite(osp.join(save_path, 'pauli.png'), cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
 
-    print('c3 max:', c3.max(), ' min:', c3.min())
-    h = Hokeman_decomposition(c3)
-    print('h max:', h.max(), ' min:', h.min())
-    for ii in range(9):
-        # cv2.imwrite(osp.join(save_path, f'{ii}.png'), 255*min_max_map(h[ii, :, :]))
-        tmp = h[ii, :, :]
-        tmp = np.log(tmp)
-        plt.hist(tmp)
-        plt.savefig(osp.join(save_path, f'{ii}.png'))
-
+    # print('c3 max:', c3.max(), ' min:', c3.min())
+    # h = Hokeman_decomposition(c3)
+    # print('h max:', h.max(), ' min:', h.min())
+    # for ii in range(9):
+    #     # cv2.imwrite(osp.join(save_path, f'{ii}.png'), 255*min_max_map(h[ii, :, :]))
+    #     tmp = h[ii, :, :]
+    #     tmp = np.log(tmp)
+    #     plt.hist(tmp)
+    #     plt.savefig(osp.join(save_path, f'{ii}.png'))
     ''' test Hokeman_decomposition() func '''
