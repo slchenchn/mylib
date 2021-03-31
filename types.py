@@ -1,3 +1,9 @@
+'''
+Author: Shuailin Chen
+Created Date: 2020-11-17
+Last Modified: 2021-03-29
+	content: 
+'''
 from typing import Union
 from numpy import ndarray
 import numpy as np
@@ -56,7 +62,7 @@ def dict2fig(d:dict)->Figure:
     plt.axis('off')
     ax.table(cellText=vals, loc='center', cellLoc='center', rowLabels=keys, rowColours=['C1']*rows)
     # ax.table(cellText=vals,   rowLabels=keys)
-    plt.savefig('./tmp/pp.png', bbox_inches='tight')
+    # plt.savefig('./tmp/pp.png', bbox_inches='tight')
     fig.tight_layout()
     return fig
 
