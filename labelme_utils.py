@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-03-25
+Last Modified: 2021-04-02
 	content: 
 '''
 ''' last modefied: 2021-01-23 '''
@@ -433,11 +433,10 @@ if __name__=='__main__':
 
     # src_path = r'E:\BaiduNetdiskDownload\RADATSAT-2'
     src_path = r'/data/csl/SAR_CD/GF3/label'
-    
 
     # '''' >>>>>>>>>>   test generate_change_label() >>>>>>> '''
-    check_label_name(src_path, label_names_all)
-    json_to_dataset_batch(src_path, label_names_all)
+    # check_label_name(src_path, label_names_all)
+    # json_to_dataset_batch(src_path, label_names_all)
     change_cnt = generate_change_label(src_path, label_names_all, sensor='GF3')
     print('change count:', change_cnt)
     cls_cnt, change_cnt  = get_label_statistics(src_path, label_names_all)

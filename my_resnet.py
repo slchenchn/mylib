@@ -1,3 +1,9 @@
+'''
+Author: Shuailin Chen
+Created Date: 2021-04-01
+Last Modified: 2021-04-02
+	content: 
+'''
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -5,10 +11,6 @@ from torchvision.models.utils import load_state_dict_from_url
 from typing import Type, Any, Callable, Union, List, Optional
 
 ''' 使得输入数据的通道数可以自定义 '''
-
-__all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
-           'resnet152', 'resnext50_32x4d', 'resnext101_32x8d',
-           'wide_resnet50_2', 'wide_resnet101_2']
 
 
 model_urls = {
