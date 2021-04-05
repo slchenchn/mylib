@@ -33,7 +33,7 @@ def get_params_norm(parameters: _tensor_or_tensors, norm_type: float = 2.0, sta_
 
     if sta_type=='total':
         if norm_type == inf:
-            total_norm = max(p.grad.abs().max().to(device) for p in parameters)
+            total_norm = max(p.grad.detach().abs().max().to(device) for p in parameters)
         else:
             total_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), norm_type).to(device) for p in parameters]), norm_type)
         ret = total_norm
