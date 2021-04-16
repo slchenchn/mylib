@@ -1,16 +1,19 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-03-29
+Last Modified: 2021-04-16
 '''
 import os
-from os import path
+import os.path as osp
+import math
+
 import numpy as np 
 from matplotlib import pyplot as plt 
-import os.path as osp
 import cv2
 import bisect
 from numpy import ndarray
+import torch
+
 from mylib import file_utils as fu
 from typing import Union
 
@@ -18,6 +21,10 @@ from typing import Union
 c3_bin_files = ['C11.bin', 'C12_real.bin', 'C12_imag.bin', 'C13_real.bin', 
             'C13_imag.bin', 'C22.bin', 'C23_real.bin', 'C23_imag.bin',
             'C33.bin',]
+
+t3_bin_files = ['T11.bin', 'T12_real.bin', 'T12_imag.bin', 'T13_real.bin', 
+            'T13_imag.bin', 'T22.bin', 'T23_real.bin', 'T23_imag.bin',
+            'T33.bin',]
 
 s2_bin_files = ['s11.bin', 's12.bin', 's21.bin', 's22.bin']
 
@@ -180,7 +187,32 @@ def read_s2(path:str, meta_info=None, count=-1, offset=0, is_print=None)->np.nda
     return s2
 
 
-def write_config_hdr(path:str, config:Union[dict, list, tuple], config_type='hdr')->None:
+def c32t3(path: str=None, c3: ndarray=None) -> ndarray :
+    ''' change C3 data to T3 data 
+    @in     -path       -path of c3 data
+            -C3         -C3 data, should not be used if "path" is specified
+    @ret    -T3         -T3 data
+    '''
+    if path:
+        c3_ = read_c3(path, out='save_space')
+    else:
+        c3_  = as_format(c3, 'save_space')
+    
+    t3 = np.zeros_like(c3_)
+    t3[0, ...] = (c3_[0, ...] + 2*c3_[3, ...] + c3_[8, ...]) / 2
+    t3[1, ...] = (c3_[0, ...] - c3_[8, ...]) / 2
+    t3[2, ...] = -c3_[4, ...]
+    t3[3, ...] = (c3_[1, ...] + c3_[6, ...]) / np.sqrt(2)
+    t3[4, ...] = (c3_[2, ...] - c3_[7, ...]) / np.sqrt(2)
+    t3[5, ...] = (c3_[0, ...] - 2*c3_[3, ...] + c3_[8, ...]) / 2
+    t3[6, ...] = (c3_[1, ...] - c3_[6, ...]) / np.sqrt(2)
+    t3[7, ...] = (c3_[2, ...] + c3_[7, ...]) / np.sqrt(2)
+    t3[8, ...] = c3_[5, ...]  
+
+    return t3
+
+
+def write_config_hdr(path:str, config:Union[dict, list, tuple], config_type='hdr', data_type='c3')->None:
     """
     write config.txt file and Cxx.hdr file
     @in     -path           -data path
@@ -200,8 +232,15 @@ def write_config_hdr(path:str, config:Union[dict, list, tuple], config_type='hdr
             datatype = '4'
             interleave = 'bsq'
             byteorder = '0'
-            
-        for bin in c3_bin_files:
+        
+        if data_type=='c3':
+            bin_files = c3_bin_files
+        elif data_type=='t3':
+            bin_files = t3_bin_files
+        else:
+            raise ValueError('unrecognized data type')
+
+        for bin in bin_files:
             file_hdr = osp.join(path, bin + '.hdr')
             with open(file_hdr, 'w') as hdr:
                 hdr.write('ENVI\ndescription = {File Imported into ENVI.}\n')
@@ -244,13 +283,44 @@ def write_c3(path:str, data:ndarray, config:dict=None, is_print=False):
         print('writing ', path)
 
     # write config.txt and *.bin.hdr file
-    if config is not None:
-        write_config_hdr(path, config)
+    if config is None:
+        config = data.shape[1:]
+    write_config_hdr(path, config)
 
     # write binary files
     if (isinstance(config, dict) and config['data type'] == '4') or isinstance(config, (list, tuple)):
         data = as_format(data, out='save_space')
         for idx, bin in enumerate(c3_bin_files):
+            fullpath = osp.join(path, bin)
+            file = data[idx, :, :]
+            file.tofile(fullpath)
+    else:
+        raise NotImplementedError('data type is not float32')
+
+
+def write_t3(path:str, data:ndarray, config:dict=None, is_print=False):    
+    ''' 
+    write t3 data 
+    @in     -path       -data path
+            -data       -the polSAR data
+            -config     -config information require for .bin.hdr file, in a dict format
+            -is_print   -whether to print the debug info
+    '''
+    
+    # check input
+    if is_print:
+        print('writing ', path)
+
+    # write config.txt and *.bin.hdr file
+    if config is None:
+        config = data.shape[1:]
+    write_config_hdr(path, config, data_type='t3')
+
+
+    # write binary files
+    if (isinstance(config, dict) and config['data type'] == '4') or isinstance(config, (list, tuple)):
+        data = as_format(data, out='save_space')
+        for idx, bin in enumerate(t3_bin_files):
             fullpath = osp.join(path, bin)
             file = data[idx, :, :]
             file.tofile(fullpath)
@@ -439,6 +509,55 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli')->np.ndarray:
     return np.stack((R, G, B), axis=2)
 
 
+def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
+    ''' @brief   -create the pseudo RGB image with covariance matrix
+    @in      -data  -input polSAR data
+    @in      -type  -'pauli' or 'sinclair'
+    @out     -RGB data in [0, 255]
+    '''
+    type = type.lower()
+
+    data = np.real(as_format(data, out='complex_vector_6'))
+    R = np.zeros(data.shape[:2], dtype = np.float32)
+    G = R.copy()
+    B = R.copy()
+
+    # compute orginal RGB components
+    if type == 'pauli':
+        # print('test')
+        R = data[3, :, :]
+        G = data[5, :, :]
+        B = data[0, :, :]
+
+    # print(R, '\n')
+    # abs
+    R = np.abs(R)
+    G = np.abs(G)
+    B = np.abs(B)
+
+    # clip
+    R[R<np.finfo(float).eps] = np.finfo(float).eps
+    G[G<np.finfo(float).eps] = np.finfo(float).eps
+    B[B<np.finfo(float).eps] = np.finfo(float).eps
+
+    # print(R, '\n')
+    # logarithm 
+    R = 10*np.log10(R)
+    G = 10*np.log10(G)
+    B = 10*np.log10(B)
+    
+    # normalize
+    # R = min_max_contrast_median_map(R[R!=10*np.log10(np.finfo(float).eps)])
+    # G = min_max_contrast_median_map(G[G!=10*np.log10(np.finfo(float).eps)])
+    # B = min_max_contrast_median_map(B[B!=10*np.log10(np.finfo(float).eps)])
+    R = min_max_contrast_median_map(R)
+    G = min_max_contrast_median_map(G)
+    B = min_max_contrast_median_map(B)
+
+    # print(R.shape, G.shape, B.shape)
+    return np.stack((R, G, B), axis=2)
+
+
 def rgb_by_s2(data:np.ndarray, type:str='pauli')->np.ndarray:
     ''' @brief   -create the pseudo RGB image with s2 matrix
     @in      -data  -input polSAR data
@@ -525,13 +644,13 @@ def min_max_contrast_median(data:np.ndarray):
     med2 = med.copy()       # the maximum value
     for ii in range(3):
         part_min = data[data<med1]
-        if part_min.size>0:
+        if len(part_min) > 0:
             med1 = np.median(part_min)
         else:
             break
     for ii in range(3):
         part_max = data[data>med2]
-        if part_max.size>0:
+        if len(part_max) > 0:
             med2 = np.median(part_max)
         else:
             break
@@ -749,7 +868,128 @@ def Hokeman_decomposition(data:ndarray)->ndarray:
     return H
 
 
+def my_cholesky(M, dtype='torch'):
+    """
+    Compute the cholesky decomposition of a number of SPD matrix M.
+    @in     -M      -assume in [height, width, channel] or [height, width] shape
+    @in     -dtype  -'torch' or 'numpy'
+    @ret    -L      -lower trianglar
+    note: no checking is perfomered to verify whether M is hermitian and semi positive definite or not.
+    """
+
+    A = np.copy(M)
+    L = np.zeros_like(A)
+    n = A.shape[0]
+
+    if A.ndim == 2:     # in shape of [height, width] 
+        for k in range(n):
+            L[k, k] = np.sqrt(A[k, k])
+            L[k+1:, k] = A[k+1:,  k] / L[k, k]
+            for j in range(k + 1, n):
+                A[j:, j] = A[j:, j] - L[j, k].conj().T * L[j:, k]
+    elif A.ndim == 3:   #in shape of [height, width, channel]
+        for k in range(n):
+            L[k, k, :] = np.sqrt(A[k, k, :])
+            L[k+1:, k, :] = A[k+1:,  k, :] / np.expand_dims(L[k, k, :], axis=0)
+            for j in range(k + 1, n):
+                A[j:, j, :] = A[j:, j, :] - np.expand_dims(L[j, k, :].conj().T, axis=0) * L[j:, k, :]
+    else:
+        raise NotImplementedError
+    
+    if dtype == 'torch':
+        L = torch.from_numpy(L)
+
+    return L
+
+
+def wishart_noise(sigma, ENL: int=3):
+    ''' Generate wishart noise 
+    @in     -sigma      -original matix, in shape of [3, 3, len_]
+    @in     -ENL        -equivalent number of looks
+    @ret    
+    '''
+    h, w, len_ = sigma.shape
+    if (h!=3) or (w!=3):
+        raise ValueError('shape of a covariance matrix should be 3x3')
+        
+    c = my_cholesky(sigma)  # 3x3xlen_
+    # generate complex gaussian distribution 
+    x = np.random.randn(3, ENL, len_) + 1j*np.random.randn(3, ENL, len_)
+
+    w = mat_mul_dot(x.conj(), x)/2            
+    w = mat_mul_dot(mat_mul_dot(c, w), c.conj())
+
+    # w = (x.conj().T@x + y.conj().T@y - 1j*(x.conj().T@y-y.conj().T@x))/2
+    # w = c.conj().T @ w @ c
+    
+    return w
+
+
+def mat_mul_dot(a: ndarray, b: ndarray) -> ndarray:
+    ''' a specified calculation of matrices, calulate matrix product on the first two axes, while remain the last axes unchanged
+    @in     -a,b    -numpy array, both in [i, j, ...] shape 
+    @ret    -c      -numpy array, in [i, i, ...] shape
+    '''
+    return np.einsum('ij..., kj...->ik...', a, b)
+
+
 if __name__=='__main__':
+    ''' test c32te() '''
+    path = r'data/PolSAR_building_det/data/GF3/anshou/20190223/C3/0'
+    t3 = c32t3(path)
+    write_t3('./tmp', t3)
+    rgb = (rgb_by_t3(t3)*255).astype(np.uint8)
+    cv2.imwrite(osp.join('./tmp', 'pauli.png'), cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
+    print(t3)
+
+    ''' test mat_mul_dot() '''
+    # c1, c2, c3 = [], [], []
+    # for ii in range(10):
+    #     a = np.random.rand(3, 4)
+    #     b = np.random.rand(3, 4)
+    #     c1.append(a @ b.T)
+    #     c2.append(a)
+    #     c3.append(b)
+    # c1 = np.stack(c1, axis=2)
+    # c2 = np.stack(c2, axis=2)
+    # c3 = np.stack(c3, axis=2)
+    # # c4 = np.einsum('ij..., kj...->ik...', c2, c3)
+    # c4 = mat_mul_dot(c2, c3)
+    # for ii in range(10):
+    #     print(np.array_str(c1[:, :, ii], precision=12))
+    #     print()
+    #     print(np.array_str(c4[:, :, ii], precision=12))
+    #     print(np.equal(c1[:, :, ii], c4[:, :, ii]))
+    #     print('-'*50)
+    # print(np.equal(c1, c4))
+    # print('done')
+
+    ''' test my_cholesky() '''
+    # ll = []
+    # ll_1 = []
+    # for ii in range(10):
+    #     a = np.random.randn(3,5) + 1j*np.random.randn(3,5)
+    #     b = a @ a.conj().T
+    #     ll.append(b)
+    #     ll_1.append(my_cholesky(b))
+    # ll_1 = np.stack(ll_1, axis=2)
+    # ll_2 = np.stack(ll, axis=2)
+    # ll_2 = my_cholesky(ll_2)
+    # for ii in range(10):
+    #     print(np.array_str(ll_1[:, :, ii], precision=4))
+    #     print()
+    #     print(np.array_str(ll_2[:, :, ii], precision=4))
+    #     print('-'*50)
+    # print('done')
+
+
+    ''' test wishart_noise() '''
+    a = np.random.randn(3,1) + 1j*np.random.randn(3,1)
+    b = a @ a.conj().T
+    c = wishart_noise(b, 7)
+    print(c)
+
+
     ''' test read_s2() func '''
     # path = r'data/SAR_CD/GF3/data/E139_N35_日本横滨/降轨/1/20190615/s2'
     # path = r'./tmp/s2'
@@ -760,10 +1000,10 @@ if __name__=='__main__':
 
 
     ''' test split_patch_s2() func '''
-    path = r'/data/csl/SAR_CD/GF3/data'
-    for root, subdirs, files in os.walk(path):
-        if 's2' == root[-2:]:
-            split_patch_s2(root, transpose=True)
+    # path = r'/data/csl/SAR_CD/GF3/data'
+    # for root, subdirs, files in os.walk(path):
+    #     if 's2' == root[-2:]:
+    #         split_patch_s2(root, transpose=True)
     ''' test split_patch() func '''
 
 

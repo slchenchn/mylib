@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-04-02
+Last Modified: 2021-04-09
 	content: 
 '''
 ''' last modefied: 2021-01-23 '''
@@ -437,8 +437,8 @@ if __name__=='__main__':
     # '''' >>>>>>>>>>   test generate_change_label() >>>>>>> '''
     # check_label_name(src_path, label_names_all)
     # json_to_dataset_batch(src_path, label_names_all)
-    change_cnt = generate_change_label(src_path, label_names_all, sensor='GF3')
-    print('change count:', change_cnt)
+    # change_cnt = generate_change_label(src_path, label_names_all, sensor='GF3')
+    # print('change count:', change_cnt)
     cls_cnt, change_cnt  = get_label_statistics(src_path, label_names_all)
     print('class count:', cls_cnt, '\nchange detection count:', change_cnt)
     # '''' ^^^^^^^^^^^^^^^^   test generate_change_label() ^^ '''
