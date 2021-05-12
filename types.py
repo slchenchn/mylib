@@ -1,9 +1,11 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-03-29
+Last Modified: 2021-04-25
 	content: 
 '''
+import random
+
 from typing import Union
 from numpy import ndarray
 import numpy as np
@@ -67,18 +69,53 @@ def dict2fig(d:dict)->Figure:
     return fig
 
 
+def list_pop(list_, idx):
+    ''' Pop a list with list-like indices 
+
+    Args:
+        list_ (list): a list object.
+        idx (int or tupe or list): indices
+    
+    Returns:
+        popped (list): popped objects
+        new_list (list): popped list
+    '''
+
+    if not isinstance(idx, (tuple, list)):
+        idx = [idx]
+
+    popped = [list_[ii] for ii in idx]
+    new_list = [j for i,j in enumerate(list_) if i not in idx]
+
+    return popped, new_list
+
+
 if __name__=='__main__':
+
+    ''' test list_pop() '''
+    a = list(range(10))
+    idx = random.sample(range(10), 5)
+    # idx = 7
+    print(f'array: {a}\nidx: {idx}')
+    p, n = list_pop(a, idx)
+    print(f'popped: {p}, \nnew list:{n}')
+    # print(a)
+
+
+
 
     ''' test flatten_dict_summarWriter() func '''
     # cfg = {'data': {'dataloader': 'SAR_CD_Hoekman', 'img_cols': 512, 'img_rows': 512, 'path': 'data/SAR_CD/RS2', 'train_split': 'train', 'val_split': 'test'}, 'model': {'arch': 'siam-diff', 'input_nbr': 9, 'label_nbr': 2}, 'training': {'batch_size': 8, 'clip': False,  'n_workers': 8,  'print_interval': 10, 'resume': 'runs/siam-diff_cross..._model.pkl', 'train_epoch': 6000}, 'weight': [0.01, 0.99]}
     # print(flatten_dict_summarWriter(cfg))
 
     ''' test dict2image() func '''
-    # a = {'a':'1', 'b':'2', 'c': '3'}
-    # print(pd.DataFrame.from_dict(a, orient='index', columns=['hhh']))
-    cfg_path = r'/home/csl/code/PolSAR_CD/configs/tile.yml'
-    with open(cfg_path) as fp:
-        cfg = yaml.load(fp, Loader=yaml.FullLoader)
-    print(cfg, '\n')
-    img = dict2fig(cfg)
-    print(img)
+    # # a = {'a':'1', 'b':'2', 'c': '3'}
+    # # print(pd.DataFrame.from_dict(a, orient='index', columns=['hhh']))
+    # cfg_path = r'/home/csl/code/PolSAR_CD/configs/tile.yml'
+    # with open(cfg_path) as fp:
+    #     cfg = yaml.load(fp, Loader=yaml.FullLoader)
+    # print(cfg, '\n')
+    # img = dict2fig(cfg)
+    # print(img)
+
+    print('done')

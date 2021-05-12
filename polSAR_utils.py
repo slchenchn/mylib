@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-04-16
+Last Modified: 2021-05-12
 '''
 import os
 import os.path as osp
@@ -30,8 +30,7 @@ s2_bin_files = ['s11.bin', 's12.bin', 's21.bin', 's22.bin']
 
 hdr_elements = ['samples', 'lines', 'byte order', 'data type', 'interleave']
 
-data_type = ['uint8', 'int16', 'int32', 'float32', 'float64', 'uint16', 'uint32',
-            'int64', 'uint64']
+data_type = ['uint8', 'int16', 'int32', 'float32', 'float64', 'uint16', 'uint32', 'int64', 'uint64']
 
 
 def check_c3_path(path:str)->str:
@@ -62,11 +61,16 @@ def read_s2_config(path:str)->dict:
     return s2_info
 
 
-def read_hdr(path:str)->dict:
-    ''' read header file of C3 file'''
-    path = check_c3_path(path)
+def read_hdr(path:str, file='C11.bin')->dict:
+    ''' Read header file of C3 file
+    
+    Args:
+        path (str): path to the hdr file
+        file (str): from whom the header file will be readed
+    '''
+    # path = check_c3_path(path)
     meta_info = dict()
-    with open(os.path.join(path, 'C11.bin.hdr'), 'r') as hdr:
+    with open(os.path.join(path, file+'.hdr'), 'r') as hdr:
         for line in hdr:
             # print(line)
             sp = line.split('=')
@@ -81,7 +85,27 @@ def read_hdr(path:str)->dict:
     return meta_info
 
 
-def read_c3(path:str, out:str='complex_vector_6', meta_info=None, count=-1, offset=0, is_print=None)->np.ndarray:
+def read_HAalpha(path):
+    ''' read H/A/alpha domposed files in ENVI format 
+
+    Args:
+        path (str): folder path
+
+    Returns:
+        ndarray in (HxWx3) shape, in the order of (H, A, alpha)
+    '''
+
+    assert osp.isdir(path), 'Wrong folder path'
+
+    meta_info = read_hdr(path, file='alpha.bin')
+    H = np.fromfile(osp.join(path, 'entropy.bin'), dtype=data_type[int(meta_info['data type'])-1]).reshape(int(meta_info['lines']), int(meta_info['samples']))
+    A = np.fromfile(osp.join(path, 'anisotropy.bin'), dtype=data_type[int(meta_info['data type'])-1]).reshape(int(meta_info['lines']), int(meta_info['samples']))
+    alpha = np.fromfile(osp.join(path, 'alpha.bin'), dtype=data_type[int(meta_info['data type'])-1]).reshape(int(meta_info['lines']), int(meta_info['samples']))
+
+    return np.stack((H, A, alpha), axis=0)
+
+
+def read_c3(path:str, out:str='complex_vector_6', meta_info=None, count=-1, offset=0, is_print=False)->np.ndarray:
     ''' read C3 data in envi data type
     @in      -path       -path to C3 data
     @in      -out        -output format, if is 'save_space',  the last dimension of the output is the channel 
@@ -560,7 +584,7 @@ def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
 
 def rgb_by_s2(data:np.ndarray, type:str='pauli')->np.ndarray:
     ''' @brief   -create the pseudo RGB image with s2 matrix
-    @in      -data  -input polSAR data
+    @in      -data  -input polSAR data, in shape of [channel, height, weight]
     @in      -type  -'pauli' or 'sinclair'
     @out     -RGB data in [0, 255]
     '''
@@ -844,6 +868,61 @@ def split_patch_s2(path, patch_size=(512, 512), transpose=False)->None:
             start_x = whole_wes - p_wes   
 
 
+def split_patch_HAalpha(path, patch_size=[512, 512], transpose=False)->None:
+    ''' Split the who image into several patches 
+    Args:
+        path (str): path to C3 data
+        patch_size (list or tuple): size of a patch, in [height, width] format
+        transpose (bool): whether to transpose the images
+    '''
+
+    if osp.isdir(path):
+        dst_path = osp.join(path, 'HAalpha')
+        path = osp.join(path, 'HAalpha.npy')
+    elif osp.isfile(path):
+        dst_path = osp.join(osp.dirname(path), 'HAalpha')
+    else:
+        raise IOError('Not a valid path')
+
+    print('working on: ', path)
+    whole_data = np.load(path)
+
+    if transpose:
+        whole_data = whole_data.transpose((0, 2, 1))
+    
+    fu.mkdir_if_not_exist(dst_path)
+    np.save(osp.join(dst_path, 'unnormed.npy'), whole_data)
+
+    whole_het, whole_wes = whole_data.shape[1:]
+    idx = 0
+    start_x = 0
+    start_y = 0
+    p_het, p_wes = patch_size
+    while start_x<whole_wes and start_y<whole_het:
+        print(f'    spliting the {idx}-th patch')
+
+        # write bin file
+        p_data = whole_data[:, start_y:start_y+p_het, start_x:start_x+p_wes]
+        p_folder = osp.join(dst_path, str(idx))
+        fu.mkdir_if_not_exist(p_folder)
+        np.save(osp.join(p_folder, 'unnormed.npy'), p_data)
+
+        # increase patch index
+        idx += 1
+        start_x += p_wes
+        if start_x >= whole_wes:      # next row
+            start_x = 0
+            start_y += p_het
+            if start_y>=whole_het:          # finish 
+                os.remove(path)         # delete original file
+                print('totle split', idx, 'patches done')
+                return
+            elif start_y+p_het > whole_het: # suplement
+                start_y = whole_het - p_het
+        elif start_x+p_wes > whole_wes: 
+            start_x = whole_wes - p_wes    
+
+
 def Hokeman_decomposition(data:ndarray)->ndarray:
     ''' calculate the Hokeman decomposition, which transforms the C3 matrix into 9 independent SAR intensities 
     @in     -data           -data to be transformed, in [channel, height, width] format
@@ -934,7 +1013,7 @@ def mat_mul_dot(a: ndarray, b: ndarray) -> ndarray:
 
 
 if __name__=='__main__':
-    ''' test c32te() '''
+    ''' test c32t3() '''
     path = r'data/PolSAR_building_det/data/GF3/anshou/20190223/C3/0'
     t3 = c32t3(path)
     write_t3('./tmp', t3)
