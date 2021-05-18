@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-05-12
+Last Modified: 2021-05-18
 '''
 import os
 import os.path as osp
@@ -13,10 +13,14 @@ import cv2
 import bisect
 from numpy import ndarray
 import torch
+from glob import glob
+import xml.etree.ElementTree as et
+import re
+import tifffile
 
 from mylib import file_utils as fu
 from typing import Union
-
+from mylib import mathlib
 
 c3_bin_files = ['C11.bin', 'C12_real.bin', 'C12_imag.bin', 'C13_real.bin', 
             'C13_imag.bin', 'C22.bin', 'C23_real.bin', 'C23_imag.bin',
@@ -211,6 +215,54 @@ def read_s2(path:str, meta_info=None, count=-1, offset=0, is_print=None)->np.nda
     return s2
 
 
+def read_c3_GF3_L2(path, is_print=False):
+    ''' Read 4 channel (HH, HV, VH, VV) data from Gaofen-3 L2 data
+
+    Args:
+        path (str): folder to the product file
+        is_print (bool): if to print infos
+
+    Returns:
+        img (ndarray): four channels data in [channel, height, weight] shape
+	'''
+    
+    if is_print:
+        print(f'Reading GF3 L2 data from {path}')
+
+    # seek for tiff files
+    tifs = glob(osp.join(path, '*.tiff'))
+    tifs.sort()
+
+    # read qualify value and calibration constant (K_dB)
+    meta_xml_path = glob(osp.join(path, '*.meta.xml'))
+    root = et.parse(osp.join(meta_xml_path[0])).getroot()
+
+    calibrate_const = []
+    for item in root.iter('CalibrationConst'):
+        for pol in item:
+            calibrate_const.append(pol.text)
+    calibrate_const = np.array(calibrate_const).reshape(-1, 1, 1).astype(np.float32)
+    
+    qualify_value = []
+    for item in root.iter('QualifyValue'):
+        for pol in item:
+            qualify_value.append(pol.text)
+    qualify_value = np.array(qualify_value).reshape(-1, 1, 1).astype(np.float32)
+
+    # read tiff
+    img = [tifffile.imread(tif) for tif in tifs]
+    img = np.stack(img, axis=0)
+    if is_print:
+        print(f'image shape: {img.shape}\n')    
+
+    # calibrate
+    img = img.astype(np.float32) 
+    img[img<mathlib.eps] = mathlib.eps
+    img = 10*np.log10(img**2 * (qualify_value/65535)**2) - calibrate_const
+
+    return img
+    
+
 def c32t3(path: str=None, c3: ndarray=None) -> ndarray :
     ''' change C3 data to T3 data 
     @in     -path       -path of c3 data
@@ -293,7 +345,7 @@ def write_config_hdr(path:str, config:Union[dict, list, tuple], config_type='hdr
     
 
 
-def write_c3(path:str, data:ndarray, config:dict=None, is_print=False):    
+def write_c3(path:str, data:ndarray, config:dict=None, config_type='hdr', is_print=False):    
     ''' 
     write c3 data 
     @in     -path       -data path
@@ -309,7 +361,7 @@ def write_c3(path:str, data:ndarray, config:dict=None, is_print=False):
     # write config.txt and *.bin.hdr file
     if config is None:
         config = data.shape[1:]
-    write_config_hdr(path, config)
+    write_config_hdr(path, config, config_type)
 
     # write binary files
     if (isinstance(config, dict) and config['data type'] == '4') or isinstance(config, (list, tuple)):
@@ -354,7 +406,7 @@ def write_t3(path:str, data:ndarray, config:dict=None, is_print=False):
 
 def write_s2(path:str, data:ndarray, config:dict=None, is_print=False):    
     ''' 
-    write s2 data 
+    write s2 data as envi data format
     @in     -path       -data path
             -data       -the polSAR data
             -config     -config information require for .bin.hdr file, in a dict format
@@ -743,6 +795,40 @@ def imadjust(src, tol=1, vin=[0,255], vout=(0,255)):
             vd = min(int(vs * scale + 0.5) + vout[0], vout[1])
             dst[r,c] = vd
     return dst
+
+
+def exact_patch_C3(src_path, rois, dst_path=None):
+    ''' Extract pathces of C3 data
+
+    Args:
+        src_path (str): source folder 
+        dst_path (str): destination folder
+        rois (list): window specifies the position of patch, should in the 
+            form of [x, y, w, h], where x and y are the coordinates of the 
+            lower right corner of the patch
+    '''
+    if dst_path is None:
+        dst_path = src_path
+    print(f'extract c3 data from {src_path},\nto {dst_path},\nrois: {rois}')
+    
+    c3 = read_c3(src_path)
+    pauli = rgb_by_c3(c3)
+    for ii, roi in enumerate(rois):
+        dst_folder = osp.join(dst_path, str(ii))
+        fu.mkdir_if_not_exist(dst_folder)
+
+        with open(osp.join(dst_folder, 'README.txt'), 'w') as f:
+            f.write(f'Original file path: {src_path}\nROI: {roi}\nin the format of (x, y, w, h), where x and y are the coordinates the lower right corner')
+
+        xs = roi[0] - roi[2]+1
+        ys = roi[1] - roi[3]+1
+        xe = roi[0] + 1
+        ye = roi[1] + 1
+        c3 = c3[ys:ye, xs:xe, ...]
+        write_c3(dst_folder, c3, {'Nrow': roi[3], 'Ncol': roi[2]}, 'cfg')
+        
+        pauli_roi = pauli[ys:ye, xs:xe, ...]
+        cv2.imwrite(osp.join(dst_folder, 'pauliRGB.bmp'), pauli_roi)
 
 
 def split_patch(path, patch_size=[512, 512], transpose=False)->None:

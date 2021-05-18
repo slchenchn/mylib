@@ -1,8 +1,15 @@
+'''
+Author: Shuailin Chen
+Created Date: 2020-11-17
+Last Modified: 2021-05-18
+	content: 
+'''
 ''' simplekml模块过于麻烦，还不如自己弄一个'''
 ''' 整个kml文件都可以作为一个 kml node '''
 ''' 最后修改： 2020/06/28'''
 
 import numpy as np
+
 
 class kml_node(object):
     def __init__(self, name, value = None):
