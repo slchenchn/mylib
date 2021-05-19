@@ -1,8 +1,10 @@
 '''
 Author: Shuailin Chen
-Created Date: 2020-11-17
+Created Date: 2021-05-19
 Last Modified: 2021-05-19
+	content: useful functions for polarimtric SAR data, written in early days
 '''
+
 import os
 import os.path as osp
 import math

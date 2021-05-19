@@ -1,8 +1,8 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-04-25
-	content: 
+Last Modified: 2021-05-19
+	content: manipulate some basic types of python
 '''
 import random
 

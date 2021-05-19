@@ -1,8 +1,8 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-04-21
-Last Modified: 2021-05-14
-	content: 
+Last Modified: 2021-05-19
+	content: functions about general math
 '''
 
 import numpy as np
