@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-05-18
+Last Modified: 2021-05-19
 '''
 import os
 import os.path as osp
@@ -563,9 +563,9 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli')->np.ndarray:
     B = np.abs(B)
 
     # clip
-    R[R<np.finfo(float).eps] = np.finfo(float).eps
-    G[G<np.finfo(float).eps] = np.finfo(float).eps
-    B[B<np.finfo(float).eps] = np.finfo(float).eps
+    R[R<mathlib.eps] = mathlib.eps
+    G[G<mathlib.eps] = mathlib.eps
+    B[B<mathlib.eps] = mathlib.eps
 
     # print(R, '\n')
     # logarithm 
@@ -574,9 +574,9 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli')->np.ndarray:
     B = 10*np.log10(B)
     
     # normalize
-    # R = min_max_contrast_median_map(R[R!=10*np.log10(np.finfo(float).eps)])
-    # G = min_max_contrast_median_map(G[G!=10*np.log10(np.finfo(float).eps)])
-    # B = min_max_contrast_median_map(B[B!=10*np.log10(np.finfo(float).eps)])
+    # R = min_max_contrast_median_map(R[R!=10*np.log10(mathlib.eps)])
+    # G = min_max_contrast_median_map(G[G!=10*np.log10(mathlib.eps)])
+    # B = min_max_contrast_median_map(B[B!=10*np.log10(mathlib.eps)])
     R = min_max_contrast_median_map(R)
     G = min_max_contrast_median_map(G)
     B = min_max_contrast_median_map(B)
@@ -612,9 +612,9 @@ def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
     B = np.abs(B)
 
     # clip
-    R[R<np.finfo(float).eps] = np.finfo(float).eps
-    G[G<np.finfo(float).eps] = np.finfo(float).eps
-    B[B<np.finfo(float).eps] = np.finfo(float).eps
+    R[R<mathlib.eps] = mathlib.eps
+    G[G<mathlib.eps] = mathlib.eps
+    B[B<mathlib.eps] = mathlib.eps
 
     # print(R, '\n')
     # logarithm 
@@ -623,9 +623,9 @@ def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
     B = 10*np.log10(B)
     
     # normalize
-    # R = min_max_contrast_median_map(R[R!=10*np.log10(np.finfo(float).eps)])
-    # G = min_max_contrast_median_map(G[G!=10*np.log10(np.finfo(float).eps)])
-    # B = min_max_contrast_median_map(B[B!=10*np.log10(np.finfo(float).eps)])
+    # R = min_max_contrast_median_map(R[R!=10*np.log10(mathlib.eps)])
+    # G = min_max_contrast_median_map(G[G!=10*np.log10(mathlib.eps)])
+    # B = min_max_contrast_median_map(B[B!=10*np.log10(mathlib.eps)])
     R = min_max_contrast_median_map(R)
     G = min_max_contrast_median_map(G)
     B = min_max_contrast_median_map(B)
@@ -634,26 +634,39 @@ def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
     return np.stack((R, G, B), axis=2)
 
 
-def rgb_by_s2(data:np.ndarray, type:str='pauli')->np.ndarray:
-    ''' @brief   -create the pseudo RGB image with s2 matrix
-    @in      -data  -input polSAR data, in shape of [channel, height, weight]
-    @in      -type  -'pauli' or 'sinclair'
-    @out     -RGB data in [0, 255]
-    '''
-    type = type.lower()
+def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True)->np.ndarray:
+    ''' Create the pseudo RGB image with s2 matrix
 
+    Args:
+        data (ndarray): input polSAR data, in shape of [channel, height, 
+            weight]
+        type (str): 'pauli' or 'sinclair'. Default: pauli
+        if_log (bool): if do logarithm to data. Default: True
+    
+    Returns:
+        RGB data in [0, 255]
+    '''
+
+    type = type.lower()
     R = np.zeros(data.shape[-2:], dtype=np.float32)
     G = R.copy()
     B = R.copy()
 
-    if type=='pauli':
-        s11 = data[0, :, :]
-        s12 = data[1, :, :]
-        s21 = data[2, :, :]
-        s22 = data[3, :, :]
-        R=0.5*np.conj(s11-s22)*(s11-s22)
-        G=0.5*np.conj(s12+s21)*(s12+s21)
-        B=0.5*np.conj(s11+s22)*(s11+s22)
+    s11 = data[0, :, :]
+    s12 = data[1, :, :]
+    s21 = data[2, :, :]
+    s22 = data[3, :, :]
+
+    if type == 'pauli':
+        assert np.all(np.iscomplex(data))
+        R = 0.5*np.conj(s11-s22)*(s11-s22)
+        G = 0.5*np.conj(s12+s21)*(s12+s21)
+        B = 0.5*np.conj(s11+s22)*(s11+s22)
+
+    elif type == 'sinclair':
+        R = s22
+        G = (s12+s21) / 2
+        B = s11
 
     # abs
     R = np.abs(R)
@@ -661,20 +674,21 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli')->np.ndarray:
     B = np.abs(B)
 
     # clip
-    R[R<np.finfo(float).eps] = np.finfo(float).eps
-    G[G<np.finfo(float).eps] = np.finfo(float).eps
-    B[B<np.finfo(float).eps] = np.finfo(float).eps
+    R[R<mathlib.eps] = mathlib.eps
+    G[G<mathlib.eps] = mathlib.eps
+    B[B<mathlib.eps] = mathlib.eps
 
     # logarithm transform, and normalize
-    R = 10*np.log10(R)
-    G = 10*np.log10(G)
-    B = 10*np.log10(B)
+    if if_log:
+        R = 10*np.log10(R)
+        G = 10*np.log10(G)
+        B = 10*np.log10(B)
     
     R = min_max_contrast_median_map(R)
     G = min_max_contrast_median_map(G)
     B = min_max_contrast_median_map(B)
 
-    return np.stack((R, G, B), axis=2)
+    return (np.stack((R, G, B), axis=2)*255).astype(np.uint8)
 
 
 def norm_3_sigma(data:np.ndarray, mean=None, std=None, type='complex'):
@@ -739,7 +753,7 @@ def min_max_contrast_median_map(data:np.ndarray)->np.ndarray:
             min_max_contrast_median function
     @out    -the nomalized np.ndarray
     '''
-    min, max = min_max_contrast_median(data[data != 10*np.log10(np.finfo(float).eps)])
+    min, max = min_max_contrast_median(data[data != 10*np.log10(mathlib.eps)])
     # print('ggg   ', min, max, 'ggg')
     return np.clip((data-min)/(max - min), a_min=0, a_max=1)
 
@@ -1029,7 +1043,7 @@ def Hokeman_decomposition(data:ndarray)->ndarray:
     # data = data[[1,9,6,4,5,2,3,7,8], :, :]
     _, m, n = data.shape
     H = (vb @ data.reshape(9, -1)).reshape(9, m, n)
-    H[H<np.finfo(float).eps] = np.finfo(float).eps
+    H[H<mathlib.eps] = mathlib.eps
     return H
 
 
