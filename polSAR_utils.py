@@ -634,7 +634,7 @@ def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
     return np.stack((R, G, B), axis=2)
 
 
-def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True)->np.ndarray:
+def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np.ndarray:
     ''' Create the pseudo RGB image with s2 matrix
 
     Args:
@@ -642,7 +642,8 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True)->np.ndarray:
             weight]
         type (str): 'pauli' or 'sinclair'. Default: pauli
         if_log (bool): if do logarithm to data. Default: True
-    
+        if_mask (bool): if to set mask to the invalid data, preventing it 
+            from computing the upper and lower bound
     Returns:
         RGB data in [0, 255]
     '''
@@ -658,7 +659,7 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True)->np.ndarray:
     s22 = data[3, :, :]
 
     if type == 'pauli':
-        assert np.all(np.iscomplex(data))
+        assert not np.all(np.isreal(data))
         R = 0.5*np.conj(s11-s22)*(s11-s22)
         G = 0.5*np.conj(s12+s21)*(s12+s21)
         B = 0.5*np.conj(s11+s22)*(s11+s22)
@@ -668,25 +669,32 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True)->np.ndarray:
         G = (s12+s21) / 2
         B = s11
 
-    # abs
-    R = np.abs(R)
-    G = np.abs(G)
-    B = np.abs(B)
-
-    # clip
-    R[R<mathlib.eps] = mathlib.eps
-    G[G<mathlib.eps] = mathlib.eps
-    B[B<mathlib.eps] = mathlib.eps
+    # abs if complex data
+    if not np.all(np.isreal(data)):
+        R = np.abs(R)
+        G = np.abs(G)
+        B = np.abs(B)
 
     # logarithm transform, and normalize
     if if_log:
+        R[R<mathlib.eps] = mathlib.eps
+        G[G<mathlib.eps] = mathlib.eps
+        B[B<mathlib.eps] = mathlib.eps
+
         R = 10*np.log10(R)
         G = 10*np.log10(G)
         B = 10*np.log10(B)
     
-    R = min_max_contrast_median_map(R)
-    G = min_max_contrast_median_map(G)
-    B = min_max_contrast_median_map(B)
+    # mask the valid pixels
+    if if_mask:
+        R_mask = R > -300
+        G_mask = G > -300
+        B_mask = B > -300
+
+    # min map map
+    R = min_max_contrast_median_map(R, mask=R_mask)
+    G = min_max_contrast_median_map(G, mask=G_mask)
+    B = min_max_contrast_median_map(B, mask=B_mask)
 
     return (np.stack((R, G, B), axis=2)*255).astype(np.uint8)
 
@@ -720,10 +728,21 @@ def norm_3_sigma(data:np.ndarray, mean=None, std=None, type='complex'):
     return mean, std, ret    
 
     
-def min_max_contrast_median(data:np.ndarray):
-    ''' @breif use the iterative method to get special min and max value
-    @out    - min and max value in a tuple
+def min_max_contrast_median(data:np.ndarray, mask=None):
+    ''' Use the iterative method to get special min and max value
+
+    Args:
+        data (ndaray): data to be processed
+        mask (ndarray): mask for the valid pixel, 1 indicates valid, 0 
+            indicates invalid, None indicats all valid. Default: None
+
+    Returns:
+        min and max value in a tuple
     '''
+    
+    if mask is not None:
+        data = data[mask]
+
     # remove nan and inf, vectorization
     data = data.reshape(1,-1)
     data = data[~(np.isnan(data) | np.isinf(data))]
@@ -747,14 +766,19 @@ def min_max_contrast_median(data:np.ndarray):
     return med1, med2
 
 
-def min_max_contrast_median_map(data:np.ndarray)->np.ndarray:
+def min_max_contrast_median_map(data:np.ndarray, mask=None)->np.ndarray:
+    '''Map all the elements of x into [0,1] using min_max_contrast_median function
+
+    Args:
+        data (ndarray): data to be mapped
+        mask (ndarray): mask for the valid pixel, 1 indicates valid, 0 
+            indicates invalid, None indicats all valid. Default: None
+
+    Returns:
+        the nomalized np.ndarray
     '''
-    @brief  -map all the elements of x into [0,1] using        
-            min_max_contrast_median function
-    @out    -the nomalized np.ndarray
-    '''
-    min, max = min_max_contrast_median(data[data != 10*np.log10(mathlib.eps)])
-    # print('ggg   ', min, max, 'ggg')
+    min, max = min_max_contrast_median(data, mask=mask)
+    print(f'min: {min}, max: {max}')
     return np.clip((data-min)/(max - min), a_min=0, a_max=1)
 
 
