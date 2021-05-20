@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-05-19
+Last Modified: 2021-05-20
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -265,6 +265,31 @@ def read_c3_GF3_L2(path, is_print=False):
     return img
     
 
+def s22c3(path=None, s2=None):
+    ''' Convert s2 data to C3 data
+
+    Args:
+        path (str): path of s2 data
+        s2 (ndarray): s2 data, should not be used if "path" is specified
+
+    Returns:
+        converted C3 data
+    '''
+    
+    if path is not None:
+        s2 = read_s2(path)
+    
+    # lexicographic basis in reciprocal condition
+    kl = s2.copy()
+    kl[1, ...] = (kl[1, ...]+kl[2, ...]) / np.sqrt(2)
+    kl = kl[[0, 1, 3], ...]
+
+    # s2 convert to C3
+    C3 = np.einsum('ij..., jk...->ik...', kl[:, np.newaxis, ...], kl[np.newaxis, ...])
+
+    return C3   
+
+    
 def c32t3(path: str=None, c3: ndarray=None) -> ndarray :
     ''' change C3 data to T3 data 
     @in     -path       -path of c3 data
@@ -295,7 +320,7 @@ def write_config_hdr(path:str, config:Union[dict, list, tuple], config_type='hdr
     write config.txt file and Cxx.hdr file
     @in     -path           -data path
             -config         -config information require for .bin.hdr file, in a dict format
-            -config_type    -config type, 'hdr' or 'cfg'
+            -config_type    -config type, 'hdr' or 'cfg' or 'shape'
     """
     if config_type=='hdr':
         if isinstance(config, dict):
@@ -334,6 +359,9 @@ def write_config_hdr(path:str, config:Union[dict, list, tuple], config_type='hdr
     elif config_type=='cfg':
         lines = config['Nrow']
         samples = config['Ncol']
+    elif config_type == 'shape':
+        lines = str(config[1])
+        samples = str(config[2])
     else:
         raise NotImplementedError
 
@@ -359,10 +387,12 @@ def write_c3(path:str, data:ndarray, config:dict=None, config_type='hdr', is_pri
     # check input
     if is_print:
         print('writing ', path)
+    fu.mkdir_if_not_exist(path)
 
     # write config.txt and *.bin.hdr file
     if config is None:
         config = data.shape[1:]
+        config_type = 'shape'
     write_config_hdr(path, config, config_type)
 
     # write binary files

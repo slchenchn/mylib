@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-04-21
-Last Modified: 2021-05-19
+Last Modified: 2021-05-20
 	content: functions about general math
 '''
 
@@ -91,7 +91,7 @@ def norm_3_sigma(data:np.ndarray, mean=None, std=None, type='complex'):
 
 
 def mat_mul_dot(a: ndarray, b: ndarray) -> ndarray:
-    ''' a specified calculation of matrices, calulate matrix product on the first two axes, while remain the last axes unchanged
+    ''' A specified calculation of matrices, calulate matrix product on the first two axes, while remain the last axes unchanged
     @in     -a,b    -numpy array, both in [i, j, ...] shape 
     @ret    -c      -numpy array, in [i, i, ...] shape
     '''
