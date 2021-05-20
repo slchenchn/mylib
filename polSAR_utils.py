@@ -273,21 +273,22 @@ def s22c3(path=None, s2=None):
         s2 (ndarray): s2 data, should not be used if "path" is specified
 
     Returns:
-        converted C3 data
+        converted C3 data in 'complex_vector_9' data format
     '''
     
     if path is not None:
         s2 = read_s2(path)
     
     # lexicographic basis in reciprocal condition
+    _, h, w = s2.shape
     kl = s2.copy()
     kl[1, ...] = (kl[1, ...]+kl[2, ...]) / np.sqrt(2)
     kl = kl[[0, 1, 3], ...]
 
     # s2 convert to C3
-    C3 = np.einsum('ij..., jk...->ik...', kl[:, np.newaxis, ...], kl[np.newaxis, ...])
+    C3 = np.einsum('ij..., jk...->ik...', kl[:, np.newaxis, ...], kl[np.newaxis, ...].conj())
 
-    return C3   
+    return C3.reshape(9, h ,w)
 
     
 def c32t3(path: str=None, c3: ndarray=None) -> ndarray :
@@ -359,9 +360,6 @@ def write_config_hdr(path:str, config:Union[dict, list, tuple], config_type='hdr
     elif config_type=='cfg':
         lines = config['Nrow']
         samples = config['Ncol']
-    elif config_type == 'shape':
-        lines = str(config[1])
-        samples = str(config[2])
     else:
         raise NotImplementedError
 
@@ -392,7 +390,6 @@ def write_c3(path:str, data:ndarray, config:dict=None, config_type='hdr', is_pri
     # write config.txt and *.bin.hdr file
     if config is None:
         config = data.shape[1:]
-        config_type = 'shape'
     write_config_hdr(path, config, config_type)
 
     # write binary files
@@ -718,6 +715,9 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
         B = 10*np.log10(B)
     
     # mask the valid pixels
+    R_mask = None
+    G_mask = None
+    B_mask = None
     if if_mask:
         R_mask = R > -300
         G_mask = G > -300
@@ -867,38 +867,72 @@ def imadjust(src, tol=1, vin=[0,255], vout=(0,255)):
     return dst
 
 
-def exact_patch_C3(src_path, rois, dst_path=None):
+def exact_patch_C3(src_path, roi, dst_path=None):
     ''' Extract pathces of C3 data
 
     Args:
         src_path (str): source folder 
         dst_path (str): destination folder
-        rois (list): window specifies the position of patch, should in the 
+        roi (list): window specifies the position of patch, should in the 
             form of [x, y, w, h], where x and y are the coordinates of the 
             lower right corner of the patch
     '''
     if dst_path is None:
         dst_path = src_path
-    print(f'extract c3 data from {src_path},\nto {dst_path},\nrois: {rois}')
+    print(f'extract c3 data from {src_path},\nto {dst_path},\nrois: {roi}')
     
     c3 = read_c3(src_path)
     pauli = rgb_by_c3(c3)
-    for ii, roi in enumerate(rois):
-        dst_folder = osp.join(dst_path, str(ii))
-        fu.mkdir_if_not_exist(dst_folder)
+    
+    fu.mkdir_if_not_exist(dst_path)
 
-        with open(osp.join(dst_folder, 'README.txt'), 'w') as f:
-            f.write(f'Original file path: {src_path}\nROI: {roi}\nin the format of (x, y, w, h), where x and y are the coordinates the lower right corner')
+    with open(osp.join(dst_path, 'README.txt'), 'w') as f:
+        f.write(f'Original file path: {src_path}\nROI: {roi}\nin the format of (x, y, w, h), where x and y are the coordinates the lower right corner')
 
-        xs = roi[0] - roi[2]+1
-        ys = roi[1] - roi[3]+1
-        xe = roi[0] + 1
-        ye = roi[1] + 1
-        c3 = c3[ys:ye, xs:xe, ...]
-        write_c3(dst_folder, c3, {'Nrow': roi[3], 'Ncol': roi[2]}, 'cfg')
-        
-        pauli_roi = pauli[ys:ye, xs:xe, ...]
-        cv2.imwrite(osp.join(dst_folder, 'pauliRGB.bmp'), pauli_roi)
+    xs = roi[0] - roi[2]+1
+    ys = roi[1] - roi[3]+1
+    xe = roi[0] + 1
+    ye = roi[1] + 1
+    c3 = c3[:, ys:ye, xs:xe]
+    # write_c3(dst_path, c3, {'Nrow': roi[3], 'Ncol': roi[2]}, 'cfg')
+    write_c3(dst_path, c3)
+    
+    pauli_roi = pauli[ys:ye, xs:xe, :]
+    cv2.imwrite(osp.join(dst_path, 'pauliRGB.bmp'), cv2.cvtColor((pauli_roi*255).astype(np.uint8), cv2.COLOR_BGR2RGB))
+
+
+def exact_patch_s2(src_path, roi, dst_path=None):
+    ''' Extract pathces of s2 data
+
+    Args:
+        src_path (str): source folder 
+        dst_path (str): destination folder
+        roi (list): window specifies the position of patch, should in the 
+            form of [x, y, w, h], where x and y are the coordinates of the 
+            lower right corner of the patch
+    '''
+    if dst_path is None:
+        dst_path = src_path
+    print(f'extract s2 data from {src_path},\nto {dst_path},\nrois: {roi}')
+    
+    s2 = read_s2(src_path)
+    pauli = rgb_by_s2(s2)
+    
+    fu.mkdir_if_not_exist(dst_path)
+
+    with open(osp.join(dst_path, 'README.txt'), 'w') as f:
+        f.write(f'Original file path: {src_path}\nROI: {roi}\nin the format of (x, y, w, h), where x and y are the coordinates the lower right corner')
+
+    xs = roi[0] - roi[2]+1
+    ys = roi[1] - roi[3]+1
+    xe = roi[0] + 1
+    ye = roi[1] + 1
+    s2 = s2[:, ys:ye, xs:xe]
+    write_s2(dst_path, s2)
+    
+    pauli_roi = pauli[ys:ye, xs:xe, :]
+    cv2.imwrite(osp.join(dst_path, 'pauliRGBwhole.png'), (pauli*255).astype(np.uint8))
+    cv2.imwrite(osp.join(dst_path, 'pauliRGB.png'), (pauli_roi*255).astype(np.uint8))
 
 
 def split_patch(path, patch_size=[512, 512], transpose=False)->None:
