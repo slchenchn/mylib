@@ -1,11 +1,12 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-05-19
+Last Modified: 2021-05-21
 	content: manipulate some basic types of python
 '''
 import random
 
+import torch
 from typing import Union
 from numpy import ndarray
 import numpy as np
@@ -15,6 +16,7 @@ import yaml
 from pandas.plotting import table
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+
 
 def flatten_dict(input:dict, parent_key='', sep='.')->dict:
     ''' flatten a nested dict '''
@@ -90,17 +92,42 @@ def list_pop(list_, idx):
     return popped, new_list
 
 
+def list_numpy_to_torch(list_):
+    ''' Convert a list of ndarray to torch tensor
+
+    Args:
+        list_ (list): list of numpy ndarray
+
+    Return:
+        list of torch tensor
+    '''
+
+    if isinstance(list_, (tuple, list)):
+        newlist = [torch.from_numpy(ii) for ii in list_]
+        return newlist
+    else:
+        raise ValueError('Wrong data type')
+
+
 if __name__=='__main__':
 
-    ''' test list_pop() '''
-    a = list(range(10))
-    idx = random.sample(range(10), 5)
-    # idx = 7
-    print(f'array: {a}\nidx: {idx}')
-    p, n = list_pop(a, idx)
-    print(f'popped: {p}, \nnew list:{n}')
-    # print(a)
+    ''' test list_numpy_to_torch() '''
+    a = np.array([1,2,3])
+    b = np.array([[1],[5]])
+    c = [a, b]
+    print(c)
+    d = list_numpy_to_torch(a)
+    print('\n', d)
 
+
+    ''' test list_pop() '''
+    # a = list(range(10))
+    # idx = random.sample(range(10), 5)
+    # # idx = 7
+    # print(f'array: {a}\nidx: {idx}')
+    # p, n = list_pop(a, idx)
+    # print(f'popped: {p}, \nnew list:{n}')
+    # # print(a)
 
 
 
