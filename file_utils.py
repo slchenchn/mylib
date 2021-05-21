@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-05-19
+Last Modified: 2021-05-21
 	content: to manipulate file and folde 
 '''
 import os
@@ -25,7 +25,7 @@ def fs_tree_to_dict(path_):
 
 
 def read_file_as_list(path):
-    ''' raad .txt file as a list, each item in list presents a row in the .txt file '''
+    ''' raad .txt file as a list, each item in list presents a row in the .txt file except the newline '''
     contents = []
     with open(path, 'r') as f:
         for line in f:
