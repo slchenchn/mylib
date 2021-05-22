@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-04-21
-Last Modified: 2021-05-20
+Last Modified: 2021-05-22
 	content: functions about general math
 '''
 
@@ -50,14 +50,16 @@ def check_inf_nan(data, prefix=None, warn=True):
     return check
     
 
-def min_max_map(x):
-    '''''''''''''''''''''''''''''''''
-    @brief  map all the elements of x into [0,1] using min max map
-    @in     x   np.ndarray
-    @out        np.ndarray
-    '''''''''''''''''''''''''''''''''
-    min = x.reshape(1,-1).min()
-    max = x.reshape(1,-1).max()
+def min_max_map(x, axis=None):
+    ''' Map x into [0,1] using min max map along a given axis
+    
+    Args:
+        axis (None or int or tuple of ints): same usage as np.max()
+    '''
+    # min = x.reshape(1,-1).min()
+    # max = x.reshape(1,-1).max()
+    min = x.min(axis=axis, keepdims=True)
+    max = x.max(axis=axis, keepdims=True)
     return (x-min)/(max-min)
 
 
@@ -137,17 +139,24 @@ def min_max_contrast_median_map(data:np.ndarray)->np.ndarray:
 
 
 if __name__=='__main__':
+    ''' test min_max_map() '''
+    a = np.array([[1, 4, 3], [2, 5, 8], [7, 6, 9]])
+    # b = min_max_map(a)
+    b = min_max_map(a, axis=1)
+    print(f'before\n{a}\nafter\n{b}')
+
+
     ''' test var_with_known_mean() '''
-    a = np.random.randn(10, 20, 30)
-    axis = (1, 2)
-    ddof = 1
-    print(f'a: {a}\n')
-    b1 = np.var(a, axis=axis, ddof=ddof)
-    b2 = var_with_known_mean(a, np.mean(a, axis=axis, keepdims=True), axis=axis, ddof=ddof)
-    print(b1)
-    print()
-    print(b2)
-    print(f'\nerr:{np.abs(b1-b2)}')
+    # a = np.random.randn(10, 20, 30)
+    # axis = (1, 2)
+    # ddof = 1
+    # print(f'a: {a}\n')
+    # b1 = np.var(a, axis=axis, ddof=ddof)
+    # b2 = var_with_known_mean(a, np.mean(a, axis=axis, keepdims=True), axis=axis, ddof=ddof)
+    # print(b1)
+    # print()
+    # print(b2)
+    # print(f'\nerr:{np.abs(b1-b2)}')
 
 
     ''' test mat_mul_dot() '''

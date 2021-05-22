@@ -69,7 +69,8 @@ if __name__ == '__main__':
     a = torch.tensor([0, 0.2, 0.3, 1])
     b = torch.tensor([0, 0.5, 1])
     # c = [a, b]
-    c = [a.numpy(), b.numpy()]
+    # c = [a.numpy(), b.numpy()]
+    c = a
     d = Tensor2cv2image(c)
     print(f'before:\n{c}\nafter\n{d}')
 
