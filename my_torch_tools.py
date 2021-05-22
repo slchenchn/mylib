@@ -1,12 +1,17 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-04-03
-Last Modified: 2021-04-03
+Last Modified: 2021-05-22
 	content: 
 '''
 import torch
 from torch._six import inf
 from typing import Union, Iterable
+from torch import Tensor
+import numpy as np
+
+from mylib import mathlib
+
 
 _tensor_or_tensors = Union[torch.Tensor, Iterable[torch.Tensor]]
 
@@ -42,10 +47,38 @@ def get_params_norm(parameters: _tensor_or_tensors, norm_type: float = 2.0, sta_
     return ret 
 
 
+def Tensor2cv2image(imgs):
+    ''' convert Tensor to cv2 image data '''
+    if not isinstance(imgs, (tuple, list)):
+        imgs = (imgs, )
+
+    # to numpy
+    newimgs = [img.numpy() if isinstance(img, Tensor) else img for img in imgs]
+
+    # normalize
+    newimgs = [mathlib.min_max_map(img) for img in newimgs]
+
+    # to unit 8
+    newimgs = [(img*255).astype(np.uint8) for img in newimgs]
+
+    return newimgs
+
+
 if __name__ == '__main__':
-    a = torch.arange(9, dtype=torch.float)-4
-    a = a.reshape(3,3)
-    b = a+1
-    a.grad = b
-    # my_clip_grad_norm_(a, max_norm=100, norm_type=2)
+    ''' test Tensor2cv2image() '''
+    a = torch.tensor([0, 0.2, 0.3, 1])
+    b = torch.tensor([0, 0.5, 1])
+    # c = [a, b]
+    c = [a.numpy(), b.numpy()]
+    d = Tensor2cv2image(c)
+    print(f'before:\n{c}\nafter\n{d}')
+
+
+
+    # a = torch.arange(9, dtype=torch.float)-4
+    # a = a.reshape(3,3)
+    # b = a+1
+    # a.grad = b
+    # # my_clip_grad_norm_(a, max_norm=100, norm_type=2)
+
     print('done')
