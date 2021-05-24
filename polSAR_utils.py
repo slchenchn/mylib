@@ -23,6 +23,7 @@ import tifffile
 from mylib import file_utils as fu
 from typing import Union
 from mylib import mathlib
+from mylib import my_torch_tools as mt
 
 c3_bin_files = ['C11.bin', 'C12_real.bin', 'C12_imag.bin', 'C13_real.bin', 
             'C13_imag.bin', 'C22.bin', 'C23_real.bin', 'C23_imag.bin',
@@ -586,8 +587,8 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli')->np.ndarray:
         B = 0.5*(data[0, :, :]+data[5, :, :])+data[2, :, :]
     elif type == 'sinclair':
         R = data[0, :, :]
-        R = data[3, :, :]
-        R = data[5, :, :]
+        G = data[3, :, :]
+        B = data[5, :, :]
 
     # print(R, '\n')
     # abs
@@ -1176,7 +1177,7 @@ def my_cholesky(M, dtype='torch'):
 
 
 def wishart_noise(sigma, ENL: int=3):
-    ''' Generate wishart noise 
+    ''' Generate wishart noise, follow paper "Generation of Sample Complex Wishart Distributed Matrices and Change Detection in Polarimetric SAR Data"
     @in     -sigma      -original matix, in shape of [3, 3, len_]
     @in     -ENL        -equivalent number of looks
     @ret    
