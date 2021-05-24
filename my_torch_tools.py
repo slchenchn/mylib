@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-04-03
-Last Modified: 2021-05-22
+Last Modified: 2021-05-24
 	content: 
 '''
 import torch
@@ -47,8 +47,12 @@ def get_params_norm(parameters: _tensor_or_tensors, norm_type: float = 2.0, sta_
     return ret 
 
 
-def Tensor2cv2image(imgs):
-    ''' convert Tensor to cv2 image data '''
+def Tensor2cv2image(imgs, channel_axis=0):
+    ''' convert Tensor to cv2 image data 
+    
+    Args:
+        channel_axis (int): which axis is channel. Default: 0
+    '''
     if not isinstance(imgs, (tuple, list)):
         imgs = (imgs, )
 
@@ -56,22 +60,28 @@ def Tensor2cv2image(imgs):
     newimgs = [img.numpy() if isinstance(img, Tensor) else img for img in imgs]
 
     # normalize
-    newimgs = [mathlib.min_max_map(img) for img in newimgs]
+    cal_axis = tuple([ii for ii in range(imgs[0].ndim) if ii!=channel_axis])
+    newimgs = [mathlib.min_max_map(img, axis=cal_axis) for img in newimgs]
 
     # to unit 8
     newimgs = [(img*255).astype(np.uint8) for img in newimgs]
+
+    # permute axes
+    newaxis = [ii for ii in range(newimgs[0].ndim) if ii!=channel_axis]
+    newaxis.append(channel_axis)
+    newimgs = [img.transpose(*newaxis) for img in newimgs]
 
     return newimgs
 
 
 if __name__ == '__main__':
     ''' test Tensor2cv2image() '''
-    a = torch.tensor([0, 0.2, 0.3, 1])
+    a = torch.tensor([[0.4, 0], [1, 0.1]])
     b = torch.tensor([0, 0.5, 1])
     # c = [a, b]
     # c = [a.numpy(), b.numpy()]
     c = a
-    d = Tensor2cv2image(c)
+    d = Tensor2cv2image(c, channel_axis=0)
     print(f'before:\n{c}\nafter\n{d}')
 
 
