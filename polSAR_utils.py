@@ -585,6 +585,10 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli')->np.ndarray:
         R = 0.5*(data[0, :, :]+data[5, :, :])-data[2, :, :]
         G = data[3, :, :]
         B = 0.5*(data[0, :, :]+data[5, :, :])+data[2, :, :]
+    elif type == 'sinclair':
+        R = data[0, :, :]
+        G = data[3, :, :]
+        B = data[5, :, :]
 
     # print(R, '\n')
     # abs
@@ -1186,7 +1190,7 @@ def my_cholesky(M, dtype='torch'):
 
 def wishart_noise(sigma, ENL: int=3):
     ''' Generate wishart noise, follow paper "Generation of Sample Complex Wishart Distributed Matrices and Change Detection in Polarimetric SAR Data"
-    
+
     @in     -sigma      -original matix, in shape of [3, 3, len_]
     @in     -ENL        -equivalent number of looks
     @ret    
