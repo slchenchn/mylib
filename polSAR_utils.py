@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-05-20
+Last Modified: 2021-05-24
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -584,6 +584,10 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli')->np.ndarray:
         R = 0.5*(data[0, :, :]+data[5, :, :])-data[2, :, :]
         G = data[3, :, :]
         B = 0.5*(data[0, :, :]+data[5, :, :])+data[2, :, :]
+    elif type == 'sinclair':
+        R = data[0, :, :]
+        R = data[3, :, :]
+        R = data[5, :, :]
 
     # print(R, '\n')
     # abs
