@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-05-20
+Last Modified: 2021-05-24
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -23,6 +23,7 @@ import tifffile
 from mylib import file_utils as fu
 from typing import Union
 from mylib import mathlib
+from mylib import my_torch_tools as mt
 
 c3_bin_files = ['C11.bin', 'C12_real.bin', 'C12_imag.bin', 'C13_real.bin', 
             'C13_imag.bin', 'C22.bin', 'C23_real.bin', 'C23_imag.bin',
@@ -731,6 +732,18 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
     return (np.stack((R, G, B), axis=2)*255).astype(np.uint8)
 
 
+# def rgb_by_Hoekman(data:np.ndarray, if_norm=False):
+#     ''' Create 3 RGB images for a Hoekman data 
+
+#     Args:
+#         data (ndarray): Hoekman data
+#         if_norm (book): if to norm (and logarithm) the data
+#     '''
+
+#     # convert to 
+#     data = mt.Tensor2cv2image(data, channel_axis=0)
+
+   
 def norm_3_sigma(data:np.ndarray, mean=None, std=None, type='complex'):
     ''' standardization, moreover, if the value beyonds mean+3*sigma, clip it 
     @in     -data       -PolSAR data, in CxHxWx... format
@@ -1172,7 +1185,8 @@ def my_cholesky(M, dtype='torch'):
 
 
 def wishart_noise(sigma, ENL: int=3):
-    ''' Generate wishart noise 
+    ''' Generate wishart noise, follow paper "Generation of Sample Complex Wishart Distributed Matrices and Change Detection in Polarimetric SAR Data"
+    
     @in     -sigma      -original matix, in shape of [3, 3, len_]
     @in     -ENL        -equivalent number of looks
     @ret    
