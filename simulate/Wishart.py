@@ -62,16 +62,18 @@ def generate_Wishart_noise_from_PolSAR_data(img, ENL):
 
 
 if __name__ == '__main__':
+    path = r'/home/csl/code/PolSAR_N2N/data/BSR/BSDS500/data/images/train/25098.jpg'
+    img = cv2.imread(path)
     # img = cv2.imread(r'a2.jpg')
-    # # img = cv2.imread(r'test.jpg')
-    # noise = generate_Wishart_noise_from_img(img, 4)
-    # pauli = psr.rgb_by_c3(noise, type='sinclair')
-    # cv2.imwrite('pauli.png', (255*pauli).astype(np.uint8))
+    # img = cv2.imread(r'test.jpg')
+    noise = generate_Wishart_noise_from_img(img, 4)
+    pauli = psr.rgb_by_c3(noise, type='sinclair')
+    cv2.imwrite('pauli.png', (255*pauli).astype(np.uint8))
 
-    C3_path = r'E:\code\python\深度学习滤波\codes(主要代码)\实验\noiseSynthetic\tmp'
-    img = psr.read_c3(C3_path)
-    noise = generate_Wishart_noise_from_PolSAR_data(img, 4)
-    pauli_ori = psr.rgb_by_c3(img)
-    pauli_noise = psr.rgb_by_c3(noise)
-    cv2.imwrite('pauli_ori.png', cv2.cvtColor((255*pauli_ori).astype(np.uint8), cv2.COLOR_RGB2BGR))
-    cv2.imwrite('pauli_noise.png', cv2.cvtColor((255*pauli_noise).astype(np.uint8), cv2.COLOR_RGB2BGR))
+    # C3_path = r'E:\code\python\深度学习滤波\codes(主要代码)\实验\noiseSynthetic\tmp'
+    # img = psr.read_c3(C3_path)
+    # noise = generate_Wishart_noise_from_PolSAR_data(img, 4)
+    # pauli_ori = psr.rgb_by_c3(img)
+    # pauli_noise = psr.rgb_by_c3(noise)
+    # cv2.imwrite('pauli_ori.png', cv2.cvtColor((255*pauli_ori).astype(np.uint8), cv2.COLOR_RGB2BGR))
+    # cv2.imwrite('pauli_noise.png', cv2.cvtColor((255*pauli_noise).astype(np.uint8), cv2.COLOR_RGB2BGR))
