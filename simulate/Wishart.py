@@ -31,7 +31,7 @@ def generate_Wishart_noise_from_img(img, ENL):
 
 	# change to PolSAR's data format
 	img = img.reshape(-1, 3).transpose()
-	tmp = np.empty((3, *img.shape), dtype=img.dtype)
+	tmp = np.zeros((3, *img.shape), dtype=img.dtype)
 	tmp[[0, 1, 2], [0, 1, 2], :] = img[:, :]
 
 	noise = psr.wishart_noise(tmp, ENL=ENL)
