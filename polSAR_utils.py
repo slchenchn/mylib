@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-05-25
+Last Modified: 2021-05-27
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -948,8 +948,8 @@ def exact_patch_s2(src_path, roi, dst_path=None):
     write_s2(dst_path, s2)
     
     pauli_roi = pauli[ys:ye, xs:xe, :]
-    cv2.imwrite(osp.join(dst_path, 'pauliRGBwhole.png'), (pauli*255).astype(np.uint8))
-    cv2.imwrite(osp.join(dst_path, 'pauliRGB.png'), (pauli_roi*255).astype(np.uint8))
+    # cv2.imwrite(osp.join(dst_path, 'pauliRGBwhole.png'), (pauli*255).astype(np.uint8))
+    cv2.imwrite(osp.join(dst_path, 'pauliRGB.png'), pauli_roi)
 
 
 def split_patch(path, patch_size=[512, 512], transpose=False)->None:
@@ -1131,9 +1131,15 @@ def split_patch_HAalpha(path, patch_size=[512, 512], transpose=False)->None:
 
 
 def Hokeman_decomposition(data:ndarray)->ndarray:
-    ''' calculate the Hokeman decomposition, which transforms the C3 matrix into 9 independent SAR intensities 
-    @in     -data           -data to be transformed, in [channel, height, width] format
-    @out    -H              -transformed Hoekman coefficient, in [channel, height, width] format
+    ''' Calculate the Hokeman decomposition, which transforms the C3 matrix into 9 independent SAR intensities 
+
+    Args:
+        data (ndarray): data to be transformed, in [channel, height, width]
+            format
+
+    Returns:
+        H (ndarray): transformed Hoekman coefficient, in [channel, height,
+            width] format
     '''
 
     vb = np.array([[   1,   0,   0,    0,    0,   0,    0,   0,    0],
@@ -1145,13 +1151,47 @@ def Hokeman_decomposition(data:ndarray)->ndarray:
                 [ 1/2,   0, 1/2,    0,    0,   1,    0,   0,    0],
                 [ 1/2,   0, 1/2,    0,    0,   0,   -1,   0,    0],
                 [ 1/4, 1/4, 1/2,    0, -1/2, 1/2, -1/2, 1/2, -1/2]], dtype=np.float32)
+    vb *= 4 * np.pi
+
     data = as_format(data, 'save_space')
-    data = data[[0,8,5,3,4,1,2,6,7], :, :]
-    # data = data[[1,9,6,4,5,2,3,7,8], :, :]
+    data = data[[0,8,5,3,4,1,2,6,7], ...]
     _, m, n = data.shape
     H = (vb @ data.reshape(9, -1)).reshape(9, m, n)
-    H[H<mathlib.eps] = mathlib.eps
+    # H *= 4*np.pi
+    # H[H<mathlib.eps] = mathlib.eps
     return H
+
+
+def inverse_Hokeman_decomposition(data:ndarray)->ndarray:
+    ''' Calculate inverse Hokeman decomposition, which transforms the 9 independent SAR intensities into C3 matrix 
+
+    Args:
+        data (ndarray): Hoekman coefficient to be transformed, in [channel,
+            height, width] format
+
+    Returns:
+        C3 (ndarray): transformed C3 data, in 'save_space' data format
+    '''
+
+    b = np.array([[    1,    0,    0,    0,    0,    0,  0,  0,  0],
+                    [    0,    1,    0,    0,    0,    0,  0,  0,  0],
+                    [ -1/4, -1/4,  1/4,  1/4,  1/4,  1/4,  0,  0,  0],
+                    [    0,    0,  1/2,  1/2, -1/2, -1/2,  0,  0,  0],
+                    [  1/4,  1/4,  3/4, -1/4,  3/4, -1/4,  0,  0, -2],
+                    [ -3/8,  1/8, -1/8, -1/8, -1/8, -1/8,  1,  0,  0],
+                    [  3/8, -1/8,  1/8,  1/8,  1/8,  1/8,  0, -1,  0],
+                    [  3/8, -1/8,  5/8, -3/8,  1/8,  1/8, -1,  0,  0],
+                    [ -3/8,  1/8, -1/8, -1/8, -5/8,  3/8,  0,  1,  0]], dtype=np.float32)
+    b /= 4 * np.pi
+
+    _, m, n = data.shape
+    C3 = b @ data.reshape(9, -1)
+    C3 = C3.reshape(9, m, n)
+    # C3[C3<mathlib.eps] = mathlib.eps
+    # C3 = 4*np.pi
+    C3 = C3[[0, 5, 6, 3, 4, 2, 7, 8, 1], ...]
+
+    return C3
 
 
 def my_cholesky(M, dtype='torch'):
