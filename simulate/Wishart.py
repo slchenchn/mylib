@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-24
-Last Modified: 2021-05-25
+Last Modified: 2021-05-28
 	content: simulate data with Wishart noise
 '''
 
@@ -21,7 +21,7 @@ def generate_Wishart_noise_from_img(img, ENL):
 		ENL (int): equivalent number of looks
 
 	Returns:
-		tmp (ndarray): reshape of the original image, in shape of [9, H, W]
+		tmp (ndarray): reshape of the original image, in data format of complex_vector_9
 		noise (ndarray): complex-valued noise image in shape of [9, H, W]	
 	'''
 
@@ -36,7 +36,7 @@ def generate_Wishart_noise_from_img(img, ENL):
 
 	noise = psr.wishart_noise(tmp, ENL=ENL)
 
-	return tmp.reshape(9, h , w), noise.reshape(9, h, w)
+	return tmp.reshape(9, h , w).astype(np.complex64), noise.reshape(9, h, w)
 
 
 def generate_Wishart_noise_from_PolSAR_data(img, ENL):

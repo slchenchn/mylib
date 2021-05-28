@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-05-27
+Last Modified: 2021-05-28
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -570,21 +570,17 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli')->np.ndarray:
     ''' @brief   -create the pseudo RGB image with covariance matrix
     @in      -data  -input polSAR data
     @in      -type  -'pauli' or 'sinclair'
-    @out     -RGB data in [0, 255]
+    @out     -RGB data in [0, 1]
     '''
     type = type.lower()
-
-    data = np.real(as_format(data, out='complex_vector_6'))
-    R = np.zeros(data.shape[:2], dtype = np.float32)
-    G = R.copy()
-    B = R.copy()
+    data = as_format(data, out='complex_vector_6')
 
     # compute orginal RGB components
     if type == 'pauli':
         # print('test')
-        R = 0.5*(data[0, :, :]+data[5, :, :])-data[2, :, :]
+        R = 0.5*(data[0, :, :]+data[5, :, :])-2*data[2, :, :]
         G = data[3, :, :]
-        B = 0.5*(data[0, :, :]+data[5, :, :])+data[2, :, :]
+        B = 0.5*(data[0, :, :]+data[5, :, :])+2*data[2, :, :]
     elif type == 'sinclair':
         R = data[5, :, :]
         G = data[3, :, :]
@@ -623,14 +619,11 @@ def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
     ''' @brief   -create the pseudo RGB image with covariance matrix
     @in      -data  -input polSAR data
     @in      -type  -'pauli' or 'sinclair'
-    @out     -RGB data in [0, 255]
+    @out     -RGB data in [0, 1]
     '''
     type = type.lower()
 
-    data = np.real(as_format(data, out='complex_vector_6'))
-    R = np.zeros(data.shape[:2], dtype = np.float32)
-    G = R.copy()
-    B = R.copy()
+    data = as_format(data, out='complex_vector_6')
 
     # compute orginal RGB components
     if type == 'pauli':
@@ -683,9 +676,6 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
     '''
 
     type = type.lower()
-    R = np.zeros(data.shape[-2:], dtype=np.float32)
-    G = R.copy()
-    B = R.copy()
 
     s11 = data[0, :, :]
     s12 = data[1, :, :]
@@ -734,18 +724,6 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
     B = min_max_contrast_median_map(B, mask=B_mask)
 
     return (np.stack((R, G, B), axis=2)*255).astype(np.uint8)
-
-
-# def rgb_by_Hoekman(data:np.ndarray, if_norm=False):
-#     ''' Create 3 RGB images for a Hoekman data 
-
-#     Args:
-#         data (ndarray): Hoekman data
-#         if_norm (book): if to norm (and logarithm) the data
-#     '''
-
-#     # convert to 
-#     data = mt.Tensor2cv2image(data, channel_axis=0)
 
    
 def norm_3_sigma(data:np.ndarray, mean=None, std=None, type='complex'):
