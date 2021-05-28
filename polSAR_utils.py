@@ -805,7 +805,7 @@ def min_max_contrast_median_map(data:np.ndarray, mask=None)->np.ndarray:
         the nomalized np.ndarray
     '''
     min, max = min_max_contrast_median(data, mask=mask)
-    print(f'min: {min}, max: {max}')
+    # print(f'min: {min}, max: {max}')
     return np.clip((data-min)/(max - min), a_min=0, a_max=1)
 
 
