@@ -8,8 +8,12 @@ Last Modified: 2021-05-30
 import cv2
 import numpy as np
 import os.path as osp
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D  
+
 
 from mylib import mathlib
+
 
 
 def save_cv2_image_as_chinese_path(img, dst_path):
@@ -34,7 +38,7 @@ def read_cv2_image_as_chinese_path(img_path, dtype=np.uint8):
 
 
 def save_image_by_cv2(img, dst_path):
-	''' Save image by cv2.imwrite, this function automatic transforms the data range and data type to adapt to cv2 
+	''' UNTESTED! Save image by cv2.imwrite, this function automatic transforms the data range and data type to adapt to cv2 
 
 	Args:
 		img (ndarray): image to be saved
@@ -48,11 +52,12 @@ def save_image_by_cv2(img, dst_path):
 		new_img = img
 	
 	elif img.dtype in (np.float32, np.float64):
-		new_img = np.empty_like(img, dtype=np.uint8)
 		
 		# add a new axis for grayscale image
 		if img.ndim==2:
 			img = img[:, :, np.newaxis]
+
+		new_img = np.empty_like(img, dtype=np.uint8)
 
 		for ii in range(img.shape[2]):
 			sub_img = img[..., ii]
@@ -60,4 +65,24 @@ def save_image_by_cv2(img, dst_path):
 			sub_img = (255*sub_img).astype(np.uint8)
 			new_img[..., ii] = sub_img
 
+	new_img = new_img.squeeze()
 	return save_cv2_image_as_chinese_path(new_img, dst_path)
+
+
+def plot_surface(img, cmap='jet'):
+	''' plot 3D surface of image
+	'''
+
+	h, w = img.shape
+
+	fig = plt.figure()
+	ax = fig.add_subplot(111, projection='3d')
+	fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+
+	X = np.arange(h)
+	Y = np.arange(w)
+	X, Y = np.meshgrid(X, Y)
+
+	surf = ax.plot_surface(X, Y, img, cmap=cmap)
+
+	return fig

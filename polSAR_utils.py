@@ -21,6 +21,7 @@ import re
 import tifffile
 
 from mylib import file_utils as fu
+from mylib import image_utils as iu
 from typing import Union
 from mylib import mathlib
 from mylib import my_torch_tools as mt
@@ -38,7 +39,6 @@ s2_bin_files = ['s11.bin', 's12.bin', 's21.bin', 's22.bin']
 hdr_elements = ['samples', 'lines', 'byte order', 'data type', 'interleave']
 
 data_type = ['uint8', 'int16', 'int32', 'float32', 'float64', 'uint16', 'uint32', 'int64', 'uint64']
-
 
 def check_c3_path(path:str)->str:
     '''check the path whether contains the c3 folder, if not, add it'''
@@ -602,16 +602,25 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli', is_print=False)->np.ndarray:
     G[G<mathlib.eps] = mathlib.eps
     B[B<mathlib.eps] = mathlib.eps
 
-    # print(R, '\n')
     # logarithm 
     R = 10*np.log10(R)
     G = 10*np.log10(G)
     B = 10*np.log10(B)
-    
+
+    # _TMP_PATH = r'/home/csl/code/PolSAR_N2N/tmp'
+    # fig = iu.plot_surface(R)
+    # plt.savefig(osp.join(_TMP_PATH, 'R.jpg'))
+    # plt.show()
+    # plt.clf()
+    # fig = iu.plot_surface(G)
+    # plt.savefig(osp.join(_TMP_PATH, 'R.jpg'))
+    # plt.show()
+    # plt.clf()
+    # fig = iu.plot_surface(B)
+    # plt.savefig(osp.join(_TMP_PATH, 'R.jpg'))
+    # plt.show()
+
     # normalize
-    # R = min_max_contrast_median_map(R[R!=10*np.log10(mathlib.eps)])
-    # G = min_max_contrast_median_map(G[G!=10*np.log10(mathlib.eps)])
-    # B = min_max_contrast_median_map(B[B!=10*np.log10(mathlib.eps)])
     R = mathlib.min_max_contrast_median_map(R, is_print=is_print)
     G = mathlib.min_max_contrast_median_map(G, is_print=is_print)
     B = mathlib.min_max_contrast_median_map(B, is_print=is_print)
@@ -729,6 +738,20 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
     B = mathlib.min_max_contrast_median_map(B, mask=B_mask)
 
     return (np.stack((R, G, B), axis=2)*255).astype(np.uint8)
+
+
+def write_hoekman_image(data, dst_path, is_print=False):
+    ''' write each channel of hoekman data to a separated grayscale image
+
+    Args:
+        data (ndarray): hoekman coefficient, in shape of 
+            [channel, height, width]
+        dst_path (str): path to save images
+        if_print (bool): if the print debug infos
+    '''
+    for ii in range(9):
+        gray_img = mathlib.min_max_contrast_median_map(10*np.log10(data[ii, :, :]), is_print=is_print)
+        iu.save_image_by_cv2(gray_img, dst_path=osp.join(dst_path, f'{ii}.png'))
 
 
 def imadjust(src, tol=1, vin=[0,255], vout=(0,255)):
