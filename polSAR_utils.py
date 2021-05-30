@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-05-28
+Last Modified: 2021-05-30
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -566,11 +566,16 @@ def as_format(data:np.ndarray, out:str='save_space')->np.ndarray:
     return c3
 
 
-def rgb_by_c3(data:np.ndarray, type:str='pauli')->np.ndarray:
-    ''' @brief   -create the pseudo RGB image with covariance matrix
-    @in      -data  -input polSAR data
-    @in      -type  -'pauli' or 'sinclair'
-    @out     -RGB data in [0, 1]
+def rgb_by_c3(data:np.ndarray, type:str='pauli', is_print=False)->np.ndarray:
+    ''' Create the pseudo RGB image with covariance matrix
+
+    Args:
+        data (ndarray): input polSAR data
+        type (str): 'pauli' or 'sinclair'. Default: 'pauli'
+        is_print (bool): if to print debug infos. Default: False
+
+    Returns:
+        RGB data in [0, 1]
     '''
     type = type.lower()
     data = as_format(data, out='complex_vector_6')
@@ -607,9 +612,9 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli')->np.ndarray:
     # R = min_max_contrast_median_map(R[R!=10*np.log10(mathlib.eps)])
     # G = min_max_contrast_median_map(G[G!=10*np.log10(mathlib.eps)])
     # B = min_max_contrast_median_map(B[B!=10*np.log10(mathlib.eps)])
-    R = min_max_contrast_median_map(R)
-    G = min_max_contrast_median_map(G)
-    B = min_max_contrast_median_map(B)
+    R = mathlib.min_max_contrast_median_map(R, is_print=is_print)
+    G = mathlib.min_max_contrast_median_map(G, is_print=is_print)
+    B = mathlib.min_max_contrast_median_map(B, is_print=is_print)
 
     # print(R.shape, G.shape, B.shape)
     return np.stack((R, G, B), axis=2)
@@ -653,9 +658,9 @@ def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
     # R = min_max_contrast_median_map(R[R!=10*np.log10(mathlib.eps)])
     # G = min_max_contrast_median_map(G[G!=10*np.log10(mathlib.eps)])
     # B = min_max_contrast_median_map(B[B!=10*np.log10(mathlib.eps)])
-    R = min_max_contrast_median_map(R)
-    G = min_max_contrast_median_map(G)
-    B = min_max_contrast_median_map(B)
+    R = mathlib.min_max_contrast_median_map(R)
+    G = mathlib.min_max_contrast_median_map(G)
+    B = mathlib.min_max_contrast_median_map(B)
 
     # print(R.shape, G.shape, B.shape)
     return np.stack((R, G, B), axis=2)
@@ -719,105 +724,11 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
         B_mask = B > -300
 
     # min map map
-    R = min_max_contrast_median_map(R, mask=R_mask)
-    G = min_max_contrast_median_map(G, mask=G_mask)
-    B = min_max_contrast_median_map(B, mask=B_mask)
+    R = mathlib.min_max_contrast_median_map(R, mask=R_mask)
+    G = mathlib.min_max_contrast_median_map(G, mask=G_mask)
+    B = mathlib.min_max_contrast_median_map(B, mask=B_mask)
 
     return (np.stack((R, G, B), axis=2)*255).astype(np.uint8)
-
-   
-def norm_3_sigma(data:np.ndarray, mean=None, std=None, type='complex'):
-    ''' standardization, moreover, if the value beyonds mean+3*sigma, clip it 
-    @in     -data       -PolSAR data, in CxHxWx... format
-            -type       -'complex': calculate the complex mean and var value, 'abs': calculate the absolute mean and var value
-    @ret    standardized data
-    '''
-    assert data.ndim>=3
-    ret = data.copy()
-
-    # absolute value of complex value
-    if type=='abs':
-        tmp = np.abs(ret)
-    elif type=='complex':
-        tmp = ret.copy()
-    else:
-        raise NotImplementedError
-
-    if mean is None:
-        mean = tmp.mean(axis=(-1, -2), keepdims=True)
-    if std is None: 
-        std = tmp.std(axis=(-1, -2), keepdims=True)
-    ret /= (mean+3*std)
-    ret_abs = np.abs(ret)
-    ret_abs[ret_abs<1] = 1
-    ret /= ret_abs
-
-    return mean, std, ret    
-
-    
-def min_max_contrast_median(data:np.ndarray, mask=None):
-    ''' Use the iterative method to get special min and max value
-
-    Args:
-        data (ndaray): data to be processed
-        mask (ndarray): mask for the valid pixel, 1 indicates valid, 0 
-            indicates invalid, None indicats all valid. Default: None
-
-    Returns:
-        min and max value in a tuple
-    '''
-    
-    if mask is not None:
-        data = data[mask]
-
-    # remove nan and inf, vectorization
-    data = data.reshape(1,-1)
-    data = data[~(np.isnan(data) | np.isinf(data))]
-
-    # iterative find the min and max value
-    med = np.median(data)
-    med1 = med.copy()       # the minimum value
-    med2 = med.copy()       # the maximum value
-    for ii in range(3):
-        part_min = data[data<med1]
-        if len(part_min) > 0:
-            med1 = np.median(part_min)
-        else:
-            break
-    for ii in range(3):
-        part_max = data[data>med2]
-        if len(part_max) > 0:
-            med2 = np.median(part_max)
-        else:
-            break
-    return med1, med2
-
-
-def min_max_contrast_median_map(data:np.ndarray, mask=None)->np.ndarray:
-    '''Map all the elements of x into [0,1] using min_max_contrast_median function
-
-    Args:
-        data (ndarray): data to be mapped
-        mask (ndarray): mask for the valid pixel, 1 indicates valid, 0 
-            indicates invalid, None indicats all valid. Default: None
-
-    Returns:
-        the nomalized np.ndarray
-    '''
-    min, max = min_max_contrast_median(data, mask=mask)
-    # print(f'min: {min}, max: {max}')
-    return np.clip((data-min)/(max - min), a_min=0, a_max=1)
-
-
-def min_max_map(x):
-    '''''''''''''''''''''''''''''''''
-    @brief  map all the elements of x into [0,1] using min max map
-    @in     x   np.ndarray
-    @out        np.ndarray
-    '''''''''''''''''''''''''''''''''
-    min = x.reshape(1,-1).min()
-    max = x.reshape(1,-1).max()
-    return (x-min)/(max-min)
 
 
 def imadjust(src, tol=1, vin=[0,255], vout=(0,255)):

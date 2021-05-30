@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-04-21
-Last Modified: 2021-05-22
+Last Modified: 2021-05-30
 	content: functions about general math
 '''
 
@@ -100,10 +100,22 @@ def mat_mul_dot(a: ndarray, b: ndarray) -> ndarray:
     return np.einsum('ij..., kj...->ik...', a, b)
 
     
-def min_max_contrast_median(data:np.ndarray):
-    ''' @breif use the iterative method to get special min and max value
-    @out    - min and max value in a tuple
+
+def min_max_contrast_median(data:np.ndarray, mask=None):
+    ''' Use the iterative method to get special min and max value
+
+    Args:
+        data (ndaray): data to be processed
+        mask (ndarray): mask for the valid pixel, 1 indicates valid, 0 
+            indicates invalid, None indicats all valid. Default: None
+
+    Returns:
+        min and max value in a tuple
     '''
+    
+    if mask is not None:
+        data = data[mask]
+
     # remove nan and inf, vectorization
     data = data.reshape(1,-1)
     data = data[~(np.isnan(data) | np.isinf(data))]
@@ -127,14 +139,21 @@ def min_max_contrast_median(data:np.ndarray):
     return med1, med2
 
 
-def min_max_contrast_median_map(data:np.ndarray)->np.ndarray:
+def min_max_contrast_median_map(data:np.ndarray, mask=None, is_print=False)->np.ndarray:
+    '''Map all the elements of x into [0,1] using min_max_contrast_median function
+
+    Args:
+        data (ndarray): data to be mapped
+        mask (ndarray): mask for the valid pixel, 1 indicates valid, 0 
+            indicates invalid, None indicats all valid. Default: None
+        is_print (bool): whether to print debug infos
+
+    Returns:
+        the nomalized np.ndarray
     '''
-    @brief  -map all the elements of x into [0,1] using        
-            min_max_contrast_median function
-    @out    -the nomalized np.ndarray
-    '''
-    min, max = min_max_contrast_median(data[data != 10*np.log10(np.finfo(float).eps)])
-    # print('ggg   ', min, max, 'ggg')
+    min, max = min_max_contrast_median(data, mask=mask)
+    if is_print:
+        print(f'min: {min}, max: {max}')
     return np.clip((data-min)/(max - min), a_min=0, a_max=1)
 
 
