@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-05-30
+Last Modified: 2021-05-31
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -1042,12 +1042,13 @@ def split_patch_HAalpha(path, patch_size=[512, 512], transpose=False)->None:
             start_x = whole_wes - p_wes    
 
 
-def Hokeman_decomposition(data:ndarray)->ndarray:
+def Hokeman_decomposition(data:ndarray, if_scale=False)->ndarray:
     ''' Calculate the Hokeman decomposition, which transforms the C3 matrix into 9 independent SAR intensities 
 
     Args:
         data (ndarray): data to be transformed, in [channel, height, width]
             format
+        if_scale (bool): if to scale the data by 4*Pi. Default: False
 
     Returns:
         H (ndarray): transformed Hoekman coefficient, in [channel, height,
@@ -1063,7 +1064,8 @@ def Hokeman_decomposition(data:ndarray)->ndarray:
                 [ 1/2,   0, 1/2,    0,    0,   1,    0,   0,    0],
                 [ 1/2,   0, 1/2,    0,    0,   0,   -1,   0,    0],
                 [ 1/4, 1/4, 1/2,    0, -1/2, 1/2, -1/2, 1/2, -1/2]], dtype=np.float32)
-    vb *= 4 * np.pi
+    if if_scale:
+        vb *= 4 * np.pi
 
     data = as_format(data, 'save_space')
     data = data[[0,8,5,3,4,1,2,6,7], ...]
@@ -1074,12 +1076,13 @@ def Hokeman_decomposition(data:ndarray)->ndarray:
     return H
 
 
-def inverse_Hokeman_decomposition(data:ndarray)->ndarray:
+def inverse_Hokeman_decomposition(data:ndarray, if_scale=False)->ndarray:
     ''' Calculate inverse Hokeman decomposition, which transforms the 9 independent SAR intensities into C3 matrix 
 
     Args:
         data (ndarray): Hoekman coefficient to be transformed, in [channel,
             height, width] format
+        if_scale (bool): if to scale the data by 1/(4*Pi). Default: False
 
     Returns:
         C3 (ndarray): transformed C3 data, in 'save_space' data format
@@ -1094,7 +1097,8 @@ def inverse_Hokeman_decomposition(data:ndarray)->ndarray:
                     [  3/8, -1/8,  1/8,  1/8,  1/8,  1/8,  0, -1,  0],
                     [  3/8, -1/8,  5/8, -3/8,  1/8,  1/8, -1,  0,  0],
                     [ -3/8,  1/8, -1/8, -1/8, -5/8,  3/8,  0,  1,  0]], dtype=np.float32)
-    b /= 4 * np.pi
+    if if_scale:
+        b /= 4 * np.pi
 
     _, m, n = data.shape
     C3 = b @ data.reshape(9, -1)
