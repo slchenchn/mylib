@@ -1161,6 +1161,7 @@ def wishart_noise(sigma, ENL: int=3):
 
     w = mat_mul_dot(x.conj(), x)/2            
     w = mat_mul_dot(mat_mul_dot(c, w), c.conj())
+    w /= ENL
 
     # w = (x.conj().T@x + y.conj().T@y - 1j*(x.conj().T@y-y.conj().T@x))/2
     # w = c.conj().T @ w @ c
