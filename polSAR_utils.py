@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-06-01
+Last Modified: 2021-06-19
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -226,7 +226,7 @@ def read_c3_GF3_L2(path, is_print=False):
         is_print (bool): if to print infos
 
     Returns:
-        img (ndarray): four channels data in [channel, height, weight] shape
+        img (ndarray): four channels data in [channel, height, weight] shape, logarithmized
 	'''
     
     if is_print:
@@ -264,6 +264,54 @@ def read_c3_GF3_L2(path, is_print=False):
     img = 10*np.log10(img**2 * (qualify_value/65535)**2) - calibrate_const
 
     return img
+    
+
+def read_s2_GF3_L1A(path, file_ext='tiff', is_print=False):
+    ''' Read 4 channel (HH, HV, VH, VV) data from Gaofen-3 L1A data, discarding calibration const!!!
+
+    Args:
+        path (str): folder to the product file
+        file_ext (Str): file extern. Default: tiff
+        is_print (bool): if to print infos
+
+    Returns:
+        img (ndarray): four channels data in [channel, height, weight] shape
+	'''
+    
+    if is_print:
+        print(f'Reading GF3 L1A data from {path}')
+
+    # seek for tiff files
+    tifs = glob(osp.join(path, '*.'+file_ext))
+    tifs.sort()
+
+    # read qualify value and calibration constant (K_dB)
+    meta_xml_path = glob(osp.join(path, '*.meta.xml'))
+    root = et.parse(osp.join(meta_xml_path[0])).getroot()
+    
+    qualify_value = []
+    for item in root.iter('QualifyValue'):
+        for pol in item:
+            qualify_value.append(pol.text)
+    qualify_value = np.array(qualify_value).reshape(-1, 1, 1).astype(np.float32)
+    qualify_value = np.repeat(qualify_value, 2)
+    qualify_value = qualify_value[:, np.newaxis, np.newaxis]
+
+    # read tiff
+    img = [tifffile.imread(tif) for tif in tifs]
+    img = np.concatenate(img, axis=0)
+    if is_print:
+        print(f'image shape: {img.shape}\n')    
+
+    # calibrate
+    img = img.astype(np.float32) 
+    # img[img<mathlib.eps] = mathlib.eps
+    img = img * qualify_value / 32767
+
+    cimg = np.empty(shape=(4, *img.shape[1:]), dtype=np.complex64)
+    cimg.real = img[::2, ...]
+    cimg.imag = img[1::2, ...]
+    return cimg
     
 
 def s22c3(path=None, s2=None):
@@ -322,7 +370,7 @@ def write_config_hdr(path:str, config:Union[dict, list, tuple], config_type='hdr
     write config.txt file and Cxx.hdr file
     @in     -path           -data path
             -config         -config information require for .bin.hdr file, in a dict format
-            -config_type    -config type, 'hdr' or 'cfg' or 'shape'
+            -config_type    -config type, 'hdr' or 'cfg'
     """
     if config_type=='hdr':
         if isinstance(config, dict):
@@ -342,6 +390,8 @@ def write_config_hdr(path:str, config:Union[dict, list, tuple], config_type='hdr
             bin_files = c3_bin_files
         elif data_type=='t3':
             bin_files = t3_bin_files
+        elif data_type=='s2':
+            bin_files = s2_bin_files
         else:
             raise ValueError('unrecognized data type')
 
@@ -434,7 +484,7 @@ def write_t3(path:str, data:ndarray, config:dict=None, is_print=False):
         raise NotImplementedError('data type is not float32')
 
 
-def write_s2(path:str, data:ndarray, config:dict=None, is_print=False):    
+def write_s2(path:str, data:ndarray, config:dict=None, is_print=False, config_type='hdr'):    
     ''' 
     write s2 data as envi data format
     @in     -path       -data path
@@ -447,8 +497,9 @@ def write_s2(path:str, data:ndarray, config:dict=None, is_print=False):
         print('writign ', path)
 
     # write config.txt
-    if config is not None:
-        write_config_hdr(path, config, config_type='cfg')
+    if config is None:
+        config = data.shape[1:]
+    write_config_hdr(path, config, config_type=config_type, data_type='s2')
 
     # write binary files
     if data.dtype==np.complex64:
@@ -728,9 +779,9 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
     G_mask = None
     B_mask = None
     if if_mask:
-        R_mask = R > -300
-        G_mask = G > -300
-        B_mask = B > -300
+        R_mask = R > -150
+        G_mask = G > -150
+        B_mask = B > -150
 
     # min map map
     R = mathlib.min_max_contrast_median_map(R, mask=R_mask)
