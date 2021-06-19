@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-05-31
+Last Modified: 2021-06-01
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -1158,6 +1158,13 @@ def wishart_noise(sigma, ENL: int=3):
     c = my_cholesky(sigma)  # 3x3xlen_
     # generate complex gaussian distribution 
     x = np.random.randn(3, ENL, len_) + 1j*np.random.randn(3, ENL, len_)
+
+    # x = x.reshape(3*ENL, len_)
+    # np.set_printoptions(precision=3)
+    # cov = np.cov(x, rowvar=False)
+    # print(cov)
+    # diff = np.abs(cov - np.eye(100))
+    # print(f'max: {diff.max()}, min: {diff.min()}, mean: {diff.mean()}')
 
     w = mat_mul_dot(x.conj(), x)/2            
     w = mat_mul_dot(mat_mul_dot(c, w), c.conj())
