@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-27
-Last Modified: 2021-05-30
+Last Modified: 2021-06-17
 	content: my image utilities
 '''
 
@@ -16,13 +16,16 @@ from mylib import mathlib
 
 
 
-def save_cv2_image_as_chinese_path(img, dst_path):
+def save_cv2_image_as_chinese_path(img, dst_path, is_bgr=False):
 	''' using cv2 to saving image in chinese path
 
 	Args:
 		img (ndarray): image
 		dst_path (str): destination path
+		is_bgr (bool): if the channel order of image is BGR. Default: False
 	'''
+	if not is_bgr:
+		img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 	ext_name = osp.splitext(dst_path)[1]
 	cv2.imencode(ext_name, img)[1].tofile(dst_path)
 
@@ -37,12 +40,13 @@ def read_cv2_image_as_chinese_path(img_path, dtype=np.uint8):
 	return cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), -1)
 
 
-def save_image_by_cv2(img, dst_path):
-	''' UNTESTED! Save image by cv2.imwrite, this function automatic transforms the data range and data type to adapt to cv2 
+def save_image_by_cv2(img, dst_path, is_bgr=False):
+	''' Save image by cv2.imwrite, this function automatic transforms the data range and data type to adapt to cv2 
 
 	Args:
 		img (ndarray): image to be saved
 		dst_path (str): save path
+		is_bgr (bool): if the channel order of image is BGR. Default: False
 
 	Returns:
 		True if succeed, False otherwise
@@ -66,7 +70,7 @@ def save_image_by_cv2(img, dst_path):
 			new_img[..., ii] = sub_img
 
 	new_img = new_img.squeeze()
-	return save_cv2_image_as_chinese_path(new_img, dst_path)
+	return save_cv2_image_as_chinese_path(new_img, dst_path, is_bgr=is_bgr)
 
 
 def plot_surface(img, cmap='jet'):

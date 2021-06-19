@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-05-18
+Last Modified: 2021-06-11
 	content: 
 '''
 ''' simplekml模块过于麻烦，还不如自己弄一个'''
@@ -90,6 +90,7 @@ class kml_node(object):
         with open(file_name, 'w', encoding='utf-8') as fp:
             fp.write('<!-- ?xml version="1.0" encoding="UTF-8"? -->\n')
             fp.write(str(self))
+
 
 if __name__ == "__main__":
     ''' 测试代码'''
