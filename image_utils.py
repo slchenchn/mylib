@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-27
-Last Modified: 2021-06-17
+Last Modified: 2021-06-20
 	content: my image utilities
 '''
 
@@ -40,13 +40,14 @@ def read_cv2_image_as_chinese_path(img_path, dtype=np.uint8):
 	return cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), -1)
 
 
-def save_image_by_cv2(img, dst_path, is_bgr=False):
+def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True):
 	''' Save image by cv2.imwrite, this function automatic transforms the data range and data type to adapt to cv2 
 
 	Args:
 		img (ndarray): image to be saved
 		dst_path (str): save path
 		is_bgr (bool): if the channel order of image is BGR. Default: False
+		if_norm (bool): whether to noralize to [0, 1]. Default: True
 
 	Returns:
 		True if succeed, False otherwise
@@ -65,7 +66,8 @@ def save_image_by_cv2(img, dst_path, is_bgr=False):
 
 		for ii in range(img.shape[2]):
 			sub_img = img[..., ii]
-			sub_img = mathlib.min_max_map(sub_img)
+			if if_norm:
+				sub_img = mathlib.min_max_map(sub_img)
 			sub_img = (255*sub_img).astype(np.uint8)
 			new_img[..., ii] = sub_img
 

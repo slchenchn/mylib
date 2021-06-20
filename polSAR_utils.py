@@ -760,7 +760,7 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
     if type == 'pauli':
         assert not np.all(np.isreal(data))
         R = 0.5*np.conj(s11-s22)*(s11-s22)
-        G = 0.5*np.conj(s12+s21)*(s12+s21)
+        G = 2*np.conj(s12)*s12
         B = 0.5*np.conj(s11+s22)*(s11+s22)
 
     elif type == 'sinclair':
@@ -926,7 +926,7 @@ def exact_patch_s2(src_path, roi, dst_path=None, if_mask=False):
     
     pauli_roi = pauli[ys:ye, xs:xe, :]
     # cv2.imwrite(osp.join(dst_path, 'pauliRGBwhole.png'), (pauli*255).astype(np.uint8))
-    cv2.imwrite(osp.join(dst_path, 'pauliRGB.png'), pauli_roi)
+    iu.save_image_by_cv2(pauli_roi, osp.join(dst_path, 'pauliRGB.png'), if_norm=False)
 
 
 def split_patch(path, patch_size=[512, 512], transpose=False)->None:
