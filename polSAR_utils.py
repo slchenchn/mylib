@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-06-19
+Last Modified: 2021-06-20
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -617,13 +617,15 @@ def as_format(data:np.ndarray, out:str='save_space')->np.ndarray:
     return c3
 
 
-def rgb_by_c3(data:np.ndarray, type:str='pauli', is_print=False)->np.ndarray:
+def rgb_by_c3(data:np.ndarray, type:str='pauli', is_print=False, if_mask=False)->np.ndarray:
     ''' Create the pseudo RGB image with covariance matrix
 
     Args:
         data (ndarray): input polSAR data
         type (str): 'pauli' or 'sinclair'. Default: 'pauli'
         is_print (bool): if to print debug infos. Default: False
+        if_mask (bool): for pauli RGB generation, if to set mask to the
+            invalid data, preventing it from computing the upper and lower bound
 
     Returns:
         RGB data in [0, 1]
@@ -634,9 +636,9 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli', is_print=False)->np.ndarray:
     # compute orginal RGB components
     if type == 'pauli':
         # print('test')
-        R = 0.5*(data[0, :, :]+data[5, :, :])-2*data[2, :, :]
+        R = 0.5*(data[0, :, :]+data[5, :, :])-2*data[2, :, :].real
         G = data[3, :, :]
-        B = 0.5*(data[0, :, :]+data[5, :, :])+2*data[2, :, :]
+        B = 0.5*(data[0, :, :]+data[5, :, :])+2*data[2, :, :].real
     elif type == 'sinclair':
         R = data[5, :, :]
         G = data[3, :, :]
@@ -658,33 +660,35 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli', is_print=False)->np.ndarray:
     G = 10*np.log10(G)
     B = 10*np.log10(B)
 
-    # _TMP_PATH = r'/home/csl/code/PolSAR_N2N/tmp'
-    # fig = iu.plot_surface(R)
-    # plt.savefig(osp.join(_TMP_PATH, 'R.jpg'))
-    # plt.show()
-    # plt.clf()
-    # fig = iu.plot_surface(G)
-    # plt.savefig(osp.join(_TMP_PATH, 'R.jpg'))
-    # plt.show()
-    # plt.clf()
-    # fig = iu.plot_surface(B)
-    # plt.savefig(osp.join(_TMP_PATH, 'R.jpg'))
-    # plt.show()
+    # mask the valid pixels
+    R_mask = None
+    G_mask = None
+    B_mask = None
+    if if_mask:
+        R_mask = R > -150
+        G_mask = G > -150
+        B_mask = B > -150
 
     # normalize
-    R = mathlib.min_max_contrast_median_map(R, is_print=is_print)
-    G = mathlib.min_max_contrast_median_map(G, is_print=is_print)
-    B = mathlib.min_max_contrast_median_map(B, is_print=is_print)
+    R = mathlib.min_max_contrast_median_map(R, mask=R_mask)
+    G = mathlib.min_max_contrast_median_map(G, mask=G_mask)
+    B = mathlib.min_max_contrast_median_map(B, mask=B_mask)
 
     # print(R.shape, G.shape, B.shape)
     return np.stack((R, G, B), axis=2)
 
 
-def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
-    ''' @brief   -create the pseudo RGB image with covariance matrix
-    @in      -data  -input polSAR data
-    @in      -type  -'pauli' or 'sinclair'
-    @out     -RGB data in [0, 1]
+def rgb_by_t3(data:np.ndarray, type:str='pauli', if_mask=False)->np.ndarray:
+    ''' Create the pseudo RGB image with covariance matrix
+
+    Args:
+        data (ndarray): input polSAR data
+        type (str): 'pauli' or 'sinclair'
+        if_mask (bool): for pauli RGB generation, if to set mask to the
+            invalid data, preventing it from computing the upper and lower bound
+
+    Returns:
+        RGB data in [0, 1]
     '''
     type = type.lower()
 
@@ -714,13 +718,19 @@ def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
     G = 10*np.log10(G)
     B = 10*np.log10(B)
     
+    # mask the valid pixels
+    R_mask = None
+    G_mask = None
+    B_mask = None
+    if if_mask:
+        R_mask = R > -150
+        G_mask = G > -150
+        B_mask = B > -150
+        
     # normalize
-    # R = min_max_contrast_median_map(R[R!=10*np.log10(mathlib.eps)])
-    # G = min_max_contrast_median_map(G[G!=10*np.log10(mathlib.eps)])
-    # B = min_max_contrast_median_map(B[B!=10*np.log10(mathlib.eps)])
-    R = mathlib.min_max_contrast_median_map(R)
-    G = mathlib.min_max_contrast_median_map(G)
-    B = mathlib.min_max_contrast_median_map(B)
+    R = mathlib.min_max_contrast_median_map(R, mask=R_mask)
+    G = mathlib.min_max_contrast_median_map(G, mask=G_mask)
+    B = mathlib.min_max_contrast_median_map(B, mask=B_mask)
 
     # print(R.shape, G.shape, B.shape)
     return np.stack((R, G, B), axis=2)
@@ -847,7 +857,7 @@ def imadjust(src, tol=1, vin=[0,255], vout=(0,255)):
     return dst
 
 
-def exact_patch_C3(src_path, roi, dst_path=None):
+def exact_patch_C3(src_path, roi, dst_path=None, if_mask=False):
     ''' Extract pathces of C3 data
 
     Args:
@@ -856,13 +866,15 @@ def exact_patch_C3(src_path, roi, dst_path=None):
         roi (list): window specifies the position of patch, should in the 
             form of [x, y, w, h], where x and y are the coordinates of the 
             lower right corner of the patch
+        if_mask (bool): for pauli RGB generation, if to set mask to the
+            invalid data, preventing it from computing the upper and lower bound
     '''
     if dst_path is None:
         dst_path = src_path
     print(f'extract c3 data from {src_path},\nto {dst_path},\nrois: {roi}')
     
     c3 = read_c3(src_path)
-    pauli = rgb_by_c3(c3)
+    pauli = rgb_by_c3(c3, if_mask=if_mask)
     
     fu.mkdir_if_not_exist(dst_path)
 
@@ -881,7 +893,7 @@ def exact_patch_C3(src_path, roi, dst_path=None):
     cv2.imwrite(osp.join(dst_path, 'pauliRGB.bmp'), cv2.cvtColor((pauli_roi*255).astype(np.uint8), cv2.COLOR_BGR2RGB))
 
 
-def exact_patch_s2(src_path, roi, dst_path=None):
+def exact_patch_s2(src_path, roi, dst_path=None, if_mask=False):
     ''' Extract pathces of s2 data
 
     Args:
@@ -890,13 +902,15 @@ def exact_patch_s2(src_path, roi, dst_path=None):
         roi (list): window specifies the position of patch, should in the 
             form of [x, y, w, h], where x and y are the coordinates of the 
             lower right corner of the patch
+        if_mask (bool): for pauli RGB generation, if to set mask to the
+            invalid data, preventing it from computing the upper and lower bound
     '''
     if dst_path is None:
         dst_path = src_path
     print(f'extract s2 data from {src_path},\nto {dst_path},\nrois: {roi}')
     
     s2 = read_s2(src_path)
-    pauli = rgb_by_s2(s2)
+    pauli = rgb_by_s2(s2, if_mask=if_mask)
     
     fu.mkdir_if_not_exist(dst_path)
 
