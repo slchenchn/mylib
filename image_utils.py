@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-27
-Last Modified: 2021-06-20
+Last Modified: 2021-06-21
 	content: my image utilities
 '''
 
@@ -10,7 +10,7 @@ import numpy as np
 import os.path as osp
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  
-
+from torch import Tensor
 
 from mylib import mathlib
 
@@ -52,7 +52,9 @@ def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True):
 	Returns:
 		True if succeed, False otherwise
 	'''
-	
+	if isinstance(img, Tensor):
+		img = img.numpy()
+		
 	if img.dtype == np.uint8:
 		new_img = img
 	
