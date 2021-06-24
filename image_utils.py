@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-27
-Last Modified: 2021-06-21
+Last Modified: 2021-06-24
 	content: my image utilities
 '''
 
@@ -72,6 +72,9 @@ def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True):
 				sub_img = mathlib.min_max_map(sub_img)
 			sub_img = (255*sub_img).astype(np.uint8)
 			new_img[..., ii] = sub_img
+			
+	elif img.dtype == np.int64:
+		new_img = img.astype(np.uint8)
 
 	new_img = new_img.squeeze()
 	return save_cv2_image_as_chinese_path(new_img, dst_path, is_bgr=is_bgr)
