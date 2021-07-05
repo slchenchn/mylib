@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-27
-Last Modified: 2021-05-30
+Last Modified: 2021-06-24
 	content: my image utilities
 '''
 
@@ -10,19 +10,22 @@ import numpy as np
 import os.path as osp
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  
-
+from torch import Tensor
 
 from mylib import mathlib
 
 
 
-def save_cv2_image_as_chinese_path(img, dst_path):
+def save_cv2_image_as_chinese_path(img, dst_path, is_bgr=False):
 	''' using cv2 to saving image in chinese path
 
 	Args:
 		img (ndarray): image
 		dst_path (str): destination path
+		is_bgr (bool): if the channel order of image is BGR. Default: False
 	'''
+	if not is_bgr:
+		img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 	ext_name = osp.splitext(dst_path)[1]
 	cv2.imencode(ext_name, img)[1].tofile(dst_path)
 
@@ -37,17 +40,21 @@ def read_cv2_image_as_chinese_path(img_path, dtype=np.uint8):
 	return cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), -1)
 
 
-def save_image_by_cv2(img, dst_path):
-	''' UNTESTED! Save image by cv2.imwrite, this function automatic transforms the data range and data type to adapt to cv2 
+def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True):
+	''' Save image by cv2.imwrite, this function automatic transforms the data range and data type to adapt to cv2 
 
 	Args:
 		img (ndarray): image to be saved
 		dst_path (str): save path
+		is_bgr (bool): if the channel order of image is BGR. Default: False
+		if_norm (bool): whether to noralize to [0, 1]. Default: True
 
 	Returns:
 		True if succeed, False otherwise
 	'''
-	
+	if isinstance(img, Tensor):
+		img = img.numpy()
+		
 	if img.dtype == np.uint8:
 		new_img = img
 	
@@ -61,12 +68,16 @@ def save_image_by_cv2(img, dst_path):
 
 		for ii in range(img.shape[2]):
 			sub_img = img[..., ii]
-			sub_img = mathlib.min_max_map(sub_img)
+			if if_norm:
+				sub_img = mathlib.min_max_map(sub_img)
 			sub_img = (255*sub_img).astype(np.uint8)
 			new_img[..., ii] = sub_img
+			
+	elif img.dtype == np.int64:
+		new_img = img.astype(np.uint8)
 
 	new_img = new_img.squeeze()
-	return save_cv2_image_as_chinese_path(new_img, dst_path)
+	return save_cv2_image_as_chinese_path(new_img, dst_path, is_bgr=is_bgr)
 
 
 def plot_surface(img, cmap='jet'):

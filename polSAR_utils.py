@@ -226,7 +226,7 @@ def read_c3_GF3_L2(path, is_print=False):
         is_print (bool): if to print infos
 
     Returns:
-        img (ndarray): four channels data in [channel, height, weight] shape
+        img (ndarray): four channels data in [channel, height, weight] shape, logarithmized
 	'''
     
     if is_print:
@@ -264,6 +264,54 @@ def read_c3_GF3_L2(path, is_print=False):
     img = 10*np.log10(img**2 * (qualify_value/65535)**2) - calibrate_const
 
     return img
+    
+
+def read_s2_GF3_L1A(path, file_ext='tiff', is_print=False):
+    ''' Read 4 channel (HH, HV, VH, VV) data from Gaofen-3 L1A data, discarding calibration const!!!
+
+    Args:
+        path (str): folder to the product file
+        file_ext (Str): file extern. Default: tiff
+        is_print (bool): if to print infos
+
+    Returns:
+        img (ndarray): four channels data in [channel, height, weight] shape
+	'''
+    
+    if is_print:
+        print(f'Reading GF3 L1A data from {path}')
+
+    # seek for tiff files
+    tifs = glob(osp.join(path, '*.'+file_ext))
+    tifs.sort()
+
+    # read qualify value and calibration constant (K_dB)
+    meta_xml_path = glob(osp.join(path, '*.meta.xml'))
+    root = et.parse(osp.join(meta_xml_path[0])).getroot()
+    
+    qualify_value = []
+    for item in root.iter('QualifyValue'):
+        for pol in item:
+            qualify_value.append(pol.text)
+    qualify_value = np.array(qualify_value).reshape(-1, 1, 1).astype(np.float32)
+    qualify_value = np.repeat(qualify_value, 2)
+    qualify_value = qualify_value[:, np.newaxis, np.newaxis]
+
+    # read tiff
+    img = [tifffile.imread(tif) for tif in tifs]
+    img = np.concatenate(img, axis=0)
+    if is_print:
+        print(f'image shape: {img.shape}\n')    
+
+    # calibrate
+    img = img.astype(np.float32) 
+    # img[img<mathlib.eps] = mathlib.eps
+    img = img * qualify_value / 32767
+
+    cimg = np.empty(shape=(4, *img.shape[1:]), dtype=np.complex64)
+    cimg.real = img[::2, ...]
+    cimg.imag = img[1::2, ...]
+    return cimg
     
 
 def s22c3(path=None, s2=None):
@@ -322,7 +370,7 @@ def write_config_hdr(path:str, config:Union[dict, list, tuple], config_type='hdr
     write config.txt file and Cxx.hdr file
     @in     -path           -data path
             -config         -config information require for .bin.hdr file, in a dict format
-            -config_type    -config type, 'hdr' or 'cfg' or 'shape'
+            -config_type    -config type, 'hdr' or 'cfg'
     """
     if config_type=='hdr':
         if isinstance(config, dict):
@@ -342,6 +390,8 @@ def write_config_hdr(path:str, config:Union[dict, list, tuple], config_type='hdr
             bin_files = c3_bin_files
         elif data_type=='t3':
             bin_files = t3_bin_files
+        elif data_type=='s2':
+            bin_files = s2_bin_files
         else:
             raise ValueError('unrecognized data type')
 
@@ -434,7 +484,7 @@ def write_t3(path:str, data:ndarray, config:dict=None, is_print=False):
         raise NotImplementedError('data type is not float32')
 
 
-def write_s2(path:str, data:ndarray, config:dict=None, is_print=False):    
+def write_s2(path:str, data:ndarray, config:dict=None, is_print=False, config_type='hdr'):    
     ''' 
     write s2 data as envi data format
     @in     -path       -data path
@@ -447,8 +497,9 @@ def write_s2(path:str, data:ndarray, config:dict=None, is_print=False):
         print('writign ', path)
 
     # write config.txt
-    if config is not None:
-        write_config_hdr(path, config, config_type='cfg')
+    if config is None:
+        config = data.shape[1:]
+    write_config_hdr(path, config, config_type=config_type, data_type='s2')
 
     # write binary files
     if data.dtype==np.complex64:
@@ -566,13 +617,15 @@ def as_format(data:np.ndarray, out:str='save_space')->np.ndarray:
     return c3
 
 
-def rgb_by_c3(data:np.ndarray, type:str='pauli', is_print=False)->np.ndarray:
+def rgb_by_c3(data:np.ndarray, type:str='pauli', is_print=False, if_mask=False)->np.ndarray:
     ''' Create the pseudo RGB image with covariance matrix
 
     Args:
         data (ndarray): input polSAR data
         type (str): 'pauli' or 'sinclair'. Default: 'pauli'
         is_print (bool): if to print debug infos. Default: False
+        if_mask (bool): for pauli RGB generation, if to set mask to the
+            invalid data, preventing it from computing the upper and lower bound
 
     Returns:
         RGB data in [0, 1]
@@ -583,9 +636,9 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli', is_print=False)->np.ndarray:
     # compute orginal RGB components
     if type == 'pauli':
         # print('test')
-        R = 0.5*(data[0, :, :]+data[5, :, :])-2*data[2, :, :]
+        R = 0.5*(data[0, :, :]+data[5, :, :])-2*data[2, :, :].real
         G = data[3, :, :]
-        B = 0.5*(data[0, :, :]+data[5, :, :])+2*data[2, :, :]
+        B = 0.5*(data[0, :, :]+data[5, :, :])+2*data[2, :, :].real
     elif type == 'sinclair':
         R = data[5, :, :]
         G = data[3, :, :]
@@ -607,23 +660,19 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli', is_print=False)->np.ndarray:
     G = 10*np.log10(G)
     B = 10*np.log10(B)
 
-    # _TMP_PATH = r'/home/csl/code/PolSAR_N2N/tmp'
-    # fig = iu.plot_surface(R)
-    # plt.savefig(osp.join(_TMP_PATH, 'R.jpg'))
-    # plt.show()
-    # plt.clf()
-    # fig = iu.plot_surface(G)
-    # plt.savefig(osp.join(_TMP_PATH, 'R.jpg'))
-    # plt.show()
-    # plt.clf()
-    # fig = iu.plot_surface(B)
-    # plt.savefig(osp.join(_TMP_PATH, 'R.jpg'))
-    # plt.show()
+    # mask the valid pixels
+    R_mask = None
+    G_mask = None
+    B_mask = None
+    if if_mask:
+        R_mask = R > -150
+        G_mask = G > -150
+        B_mask = B > -150
 
     # normalize
-    R = mathlib.min_max_contrast_median_map(R, is_print=is_print)
-    G = mathlib.min_max_contrast_median_map(G, is_print=is_print)
-    B = mathlib.min_max_contrast_median_map(B, is_print=is_print)
+    R = mathlib.min_max_contrast_median_map(R, mask=R_mask)
+    G = mathlib.min_max_contrast_median_map(G, mask=G_mask)
+    B = mathlib.min_max_contrast_median_map(B, mask=B_mask)
 
     # print(R.shape, G.shape, B.shape)
     return np.stack((R, G, B), axis=2)
@@ -701,13 +750,19 @@ def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
     G = 10*np.log10(G)
     B = 10*np.log10(B)
     
+    # mask the valid pixels
+    R_mask = None
+    G_mask = None
+    B_mask = None
+    if if_mask:
+        R_mask = R > -150
+        G_mask = G > -150
+        B_mask = B > -150
+        
     # normalize
-    # R = min_max_contrast_median_map(R[R!=10*np.log10(mathlib.eps)])
-    # G = min_max_contrast_median_map(G[G!=10*np.log10(mathlib.eps)])
-    # B = min_max_contrast_median_map(B[B!=10*np.log10(mathlib.eps)])
-    R = mathlib.min_max_contrast_median_map(R)
-    G = mathlib.min_max_contrast_median_map(G)
-    B = mathlib.min_max_contrast_median_map(B)
+    R = mathlib.min_max_contrast_median_map(R, mask=R_mask)
+    G = mathlib.min_max_contrast_median_map(G, mask=G_mask)
+    B = mathlib.min_max_contrast_median_map(B, mask=B_mask)
 
     # print(R.shape, G.shape, B.shape)
     return np.stack((R, G, B), axis=2)
@@ -737,7 +792,7 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
     if type == 'pauli':
         assert not np.all(np.isreal(data))
         R = 0.5*np.conj(s11-s22)*(s11-s22)
-        G = 0.5*np.conj(s12+s21)*(s12+s21)
+        G = 2*np.conj(s12)*s12
         B = 0.5*np.conj(s11+s22)*(s11+s22)
 
     elif type == 'sinclair':
@@ -766,9 +821,9 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
     G_mask = None
     B_mask = None
     if if_mask:
-        R_mask = R > -300
-        G_mask = G > -300
-        B_mask = B > -300
+        R_mask = R > -150
+        G_mask = G > -150
+        B_mask = B > -150
 
     # min map map
     R = mathlib.min_max_contrast_median_map(R, mask=R_mask)
@@ -834,7 +889,7 @@ def imadjust(src, tol=1, vin=[0,255], vout=(0,255)):
     return dst
 
 
-def exact_patch_C3(src_path, roi, dst_path=None):
+def exact_patch_C3(src_path, roi, dst_path=None, if_mask=False):
     ''' Extract pathces of C3 data
 
     Args:
@@ -843,13 +898,15 @@ def exact_patch_C3(src_path, roi, dst_path=None):
         roi (list): window specifies the position of patch, should in the 
             form of [x, y, w, h], where x and y are the coordinates of the 
             lower right corner of the patch
+        if_mask (bool): for pauli RGB generation, if to set mask to the
+            invalid data, preventing it from computing the upper and lower bound
     '''
     if dst_path is None:
         dst_path = src_path
     print(f'extract c3 data from {src_path},\nto {dst_path},\nrois: {roi}')
     
     c3 = read_c3(src_path)
-    pauli = rgb_by_c3(c3)
+    pauli = rgb_by_c3(c3, if_mask=if_mask)
     
     fu.mkdir_if_not_exist(dst_path)
 
@@ -868,7 +925,7 @@ def exact_patch_C3(src_path, roi, dst_path=None):
     cv2.imwrite(osp.join(dst_path, 'pauliRGB.bmp'), cv2.cvtColor((pauli_roi*255).astype(np.uint8), cv2.COLOR_BGR2RGB))
 
 
-def exact_patch_s2(src_path, roi, dst_path=None):
+def exact_patch_s2(src_path, roi, dst_path=None, if_mask=False):
     ''' Extract pathces of s2 data
 
     Args:
@@ -877,13 +934,15 @@ def exact_patch_s2(src_path, roi, dst_path=None):
         roi (list): window specifies the position of patch, should in the 
             form of [x, y, w, h], where x and y are the coordinates of the 
             lower right corner of the patch
+        if_mask (bool): for pauli RGB generation, if to set mask to the
+            invalid data, preventing it from computing the upper and lower bound
     '''
     if dst_path is None:
         dst_path = src_path
     print(f'extract s2 data from {src_path},\nto {dst_path},\nrois: {roi}')
     
     s2 = read_s2(src_path)
-    pauli = rgb_by_s2(s2)
+    pauli = rgb_by_s2(s2, if_mask=if_mask)
     
     fu.mkdir_if_not_exist(dst_path)
 
@@ -899,7 +958,7 @@ def exact_patch_s2(src_path, roi, dst_path=None):
     
     pauli_roi = pauli[ys:ye, xs:xe, :]
     # cv2.imwrite(osp.join(dst_path, 'pauliRGBwhole.png'), (pauli*255).astype(np.uint8))
-    cv2.imwrite(osp.join(dst_path, 'pauliRGB.png'), pauli_roi)
+    iu.save_image_by_cv2(pauli_roi, osp.join(dst_path, 'pauliRGB.png'), if_norm=False)
 
 
 def split_patch(path, patch_size=[512, 512], transpose=False)->None:
@@ -1196,6 +1255,13 @@ def wishart_noise(sigma, ENL: int=3):
     c = my_cholesky(sigma)  # 3x3xlen_
     # generate complex gaussian distribution 
     x = np.random.randn(3, ENL, len_) + 1j*np.random.randn(3, ENL, len_)
+
+    # x = x.reshape(3*ENL, len_)
+    # np.set_printoptions(precision=3)
+    # cov = np.cov(x, rowvar=False)
+    # print(cov)
+    # diff = np.abs(cov - np.eye(100))
+    # print(f'max: {diff.max()}, min: {diff.min()}, mean: {diff.mean()}')
 
     w = mat_mul_dot(x.conj(), x)/2            
     w = mat_mul_dot(mat_mul_dot(c, w), c.conj())
