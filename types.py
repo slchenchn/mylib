@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-05-21
+Last Modified: 2021-07-03
 	content: manipulate some basic types of python
 '''
 import random
@@ -16,6 +16,30 @@ import yaml
 from pandas.plotting import table
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+
+
+# def nest_dict(input:dict, sep='.', num=0)->dict:
+#     ''' Nest a nested dict '''
+
+#     if not isinstance(input, dict):
+#         raise TypeError('the input param should be a dict')
+    
+#     out = {}
+
+#     for k, v in input.items():
+#         if not '.' in k:
+#             out = input
+#         else:
+#             sub_key1, subkey2 = k.split(sep, 1)
+#             # out[sub_key1] = nest_dict({subkey2:v}, sep=sep, num=1)
+#             out.add({sub_key1:nest_dict(
+#                                 {subkey2:v}, sep=sep, num=1)
+#                                 })
+#             if num == 0:
+#                 print(out)
+    
+#     # print(out)
+#     return out
 
 
 def flatten_dict(input:dict, parent_key='', sep='.')->dict:
