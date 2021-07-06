@@ -670,9 +670,9 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli', is_print=False, if_mask=False)-
         B_mask = B > -150
 
     # normalize
-    R = mathlib.min_max_contrast_median_map(R, mask=R_mask)
-    G = mathlib.min_max_contrast_median_map(G, mask=G_mask)
-    B = mathlib.min_max_contrast_median_map(B, mask=B_mask)
+    R = mathlib.min_max_contrast_median_map(R, mask=R_mask, is_print=is_print)
+    G = mathlib.min_max_contrast_median_map(G, mask=G_mask, is_print=is_print)
+    B = mathlib.min_max_contrast_median_map(B, mask=B_mask, is_print=is_print)
 
     # print(R.shape, G.shape, B.shape)
     return np.stack((R, G, B), axis=2)
@@ -709,8 +709,8 @@ def gray_by_intensity(data:np.ndarray, type='3sigma', if_log=True, is_print=Fals
         gray = 10*np.log10(gray)
 
     # normalize
-    # gray = mathlib.min_max_contrast_median_map(gray, is_print=is_print)
-    gray = mathlib.min_max_map(gray)
+    gray = mathlib.min_max_contrast_median_map(gray, is_print=is_print)
+    # gray = mathlib.min_max_map(gray)
 
     # print(R.shape, G.shape, B.shape)
     return (gray*255).astype(np.uint8 )
