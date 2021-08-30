@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-21
-Last Modified: 2021-03-11
+Last Modified: 2021-07-03
 	content: 
 '''
 import argparse
@@ -43,6 +43,16 @@ class NestedNamespace(argparse.Namespace):
     def items(self):
         ''' mimic items() func in dict class '''
         return vars(self).items()
+
+    def to_nested_dict(self):
+        old_dict = vars(self)
+        new_dict = {}
+        for k, v in old_dict.items():
+            if not isinstance(v, NestedNamespace):
+                new_dict.update({k:v})
+            else:
+                new_dict.update({k:v.to_nested_dict()})
+        return new_dict
 
 
 class NestedArgumentParser(argparse.ArgumentParser):

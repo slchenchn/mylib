@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-06-20
+Last Modified: 2021-07-05
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -670,25 +670,57 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli', is_print=False, if_mask=False)-
         B_mask = B > -150
 
     # normalize
-    R = mathlib.min_max_contrast_median_map(R, mask=R_mask)
-    G = mathlib.min_max_contrast_median_map(G, mask=G_mask)
-    B = mathlib.min_max_contrast_median_map(B, mask=B_mask)
+    R = mathlib.min_max_contrast_median_map(R, mask=R_mask, is_print=is_print)
+    G = mathlib.min_max_contrast_median_map(G, mask=G_mask, is_print=is_print)
+    B = mathlib.min_max_contrast_median_map(B, mask=B_mask, is_print=is_print)
 
     # print(R.shape, G.shape, B.shape)
     return np.stack((R, G, B), axis=2)
 
 
-def rgb_by_t3(data:np.ndarray, type:str='pauli', if_mask=False)->np.ndarray:
-    ''' Create the pseudo RGB image with covariance matrix
+def gray_by_intensity(data:np.ndarray, type='3sigma', if_log=True, is_print=False)->np.ndarray:
+    ''' Create the pseudo gray image with intensity values
 
     Args:
         data (ndarray): input polSAR data
-        type (str): 'pauli' or 'sinclair'
-        if_mask (bool): for pauli RGB generation, if to set mask to the
-            invalid data, preventing it from computing the upper and lower bound
+        type (str): '3sigma' or 'log'. Default: '3sigma'
+        if_log (bool): if do logarithm to data. Default: True
+        is_print (bool): if to print debug infos. Default: False
 
     Returns:
-        RGB data in [0, 1]
+        gray data in [0, 255], in np.uint8 data type
+    '''
+
+    # check  
+    assert np.all(np.isreal(data)), \
+        r'Input param "data" Not a intensity image'
+
+    gray = data.copy()
+
+    # clip
+    gray[gray<mathlib.eps] = mathlib.eps
+
+    if type == '3sigma':
+        mean = gray.mean()
+        std = gray.std()
+        upperbound = mean + 3*std
+        gray[gray>upperbound] = upperbound
+    if type=='log' and if_log:
+        gray = 10*np.log10(gray)
+
+    # normalize
+    gray = mathlib.min_max_contrast_median_map(gray, is_print=is_print)
+    # gray = mathlib.min_max_map(gray)
+
+    # print(R.shape, G.shape, B.shape)
+    return (gray*255).astype(np.uint8 )
+
+
+def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
+    ''' @brief   -create the pseudo RGB image with covariance matrix
+    @in      -data  -input polSAR data
+    @in      -type  -'pauli' or 'sinclair'
+    @out     -RGB data in [0, 1]
     '''
     type = type.lower()
 
