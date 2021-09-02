@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-27
-Last Modified: 2021-06-24
+Last Modified: 2021-09-01
 	content: my image utilities
 '''
 
@@ -53,7 +53,7 @@ def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True):
 		True if succeed, False otherwise
 	'''
 	if isinstance(img, Tensor):
-		img = img.numpy()
+		img = img.cpu().numpy()
 		
 	if img.dtype == np.uint8:
 		new_img = img
