@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-05-21
+Last Modified: 2021-09-03
 	content: to manipulate file and folde 
 '''
 import os
@@ -34,3 +34,10 @@ def read_file_as_list(path):
                 contents.append(line)
     
     return contents
+
+
+def write_file_from_list(data:list, filepath):
+    ''' Write a list to a .txt file, each item in list presents a row in the .txt file '''
+    with open(filepath, 'w') as f:
+        for item in data:
+            f.write(f'{item}\n')
