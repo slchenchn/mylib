@@ -1,14 +1,13 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-07-05
+Last Modified: 2021-09-13
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
 import os
 import os.path as osp
 import math
-
 import numpy as np 
 from matplotlib import pyplot as plt 
 import cv2
@@ -19,6 +18,7 @@ from glob import glob
 import xml.etree.ElementTree as et
 import re
 import tifffile
+import warnings
 
 from mylib import file_utils as fu
 from mylib import image_utils as iu
@@ -768,7 +768,7 @@ def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
     return np.stack((R, G, B), axis=2)
 
 
-def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np.ndarray:
+def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False, is_print=False)->np.ndarray:
     ''' Create the pseudo RGB image with s2 matrix
 
     Args:
@@ -779,7 +779,7 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
         if_mask (bool): if to set mask to the invalid data, preventing it 
             from computing the upper and lower bound
     Returns:
-        RGB data in [0, 255]
+        RGB data in [0, 255], or None is all the data is nan
     '''
 
     type = type.lower()
@@ -790,7 +790,11 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
     s22 = data[3, :, :]
 
     if type == 'pauli':
-        assert not np.all(np.isreal(data))
+        if data[~np.isnan(data)].size == 0:
+            warnings.warn(f'all of the data is nan!')
+            # return np.zeros((*data.shape[1:], 3))
+            return None
+        assert not np.all(np.isreal(data[~np.isnan(data)]))
         R = 0.5*np.conj(s11-s22)*(s11-s22)
         G = 2*np.conj(s12)*s12
         B = 0.5*np.conj(s11+s22)*(s11+s22)
@@ -800,6 +804,10 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
         G = (s12+s21) / 2
         B = s11
 
+    R[np.isnan(R)] = mathlib.eps
+    G[np.isnan(G)] = mathlib.eps
+    B[np.isnan(B)] = mathlib.eps
+    
     # abs if complex data
     if not np.all(np.isreal(data)):
         R = np.abs(R)
@@ -826,9 +834,9 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
         B_mask = B > -150
 
     # min map map
-    R = mathlib.min_max_contrast_median_map(R, mask=R_mask)
-    G = mathlib.min_max_contrast_median_map(G, mask=G_mask)
-    B = mathlib.min_max_contrast_median_map(B, mask=B_mask)
+    R = mathlib.min_max_contrast_median_map(R, mask=R_mask, is_print=is_print)
+    G = mathlib.min_max_contrast_median_map(G, mask=G_mask, is_print=is_print)
+    B = mathlib.min_max_contrast_median_map(B, mask=B_mask, is_print=is_print)
 
     return (np.stack((R, G, B), axis=2)*255).astype(np.uint8)
 

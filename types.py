@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-07-03
+Last Modified: 2021-09-13
 	content: manipulate some basic types of python
 '''
 import random
@@ -16,6 +16,19 @@ import yaml
 from pandas.plotting import table
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+
+
+LINE_SEPARATOR = '-'*100
+
+
+def print_separate_line(message=None):
+    ''' Print separate line with message '''
+    if message is None:
+        str_ = f'\n{LINE_SEPARATOR}\n'
+    else:
+        str_ = f'\n{LINE_SEPARATOR}\n{message}\n{LINE_SEPARATOR}\n'
+
+    print(str_)
 
 
 # def nest_dict(input:dict, sep='.', num=0)->dict:
