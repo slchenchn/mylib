@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-27
-Last Modified: 2021-09-01
+Last Modified: 2021-09-16
 	content: my image utilities
 '''
 
@@ -73,8 +73,10 @@ def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True):
 			sub_img = (255*sub_img).astype(np.uint8)
 			new_img[..., ii] = sub_img
 			
-	elif img.dtype == np.int64:
+	elif img.dtype in (np.int64, np.bool8):
 		new_img = img.astype(np.uint8)
+	else:
+		raise NotImplementedError(f'supported datatype: {img.dtype}')
 
 	new_img = new_img.squeeze()
 	return save_cv2_image_as_chinese_path(new_img, dst_path, is_bgr=is_bgr)
