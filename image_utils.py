@@ -58,9 +58,10 @@ def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True):
 	if img.dtype == np.uint8:
 		new_img = img
 	
-	elif img.dtype in (np.float32, np.float64):
+	elif img.dtype in (np.float32, np.float64, np.bool8):
 		
 		# add a new axis for grayscale image
+		img = img.astype(np.float32)
 		if img.ndim==2:
 			img = img[:, :, np.newaxis]
 
@@ -73,7 +74,7 @@ def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True):
 			sub_img = (255*sub_img).astype(np.uint8)
 			new_img[..., ii] = sub_img
 			
-	elif img.dtype in (np.int64, np.bool8):
+	elif img.dtype in (np.int64, ):
 		new_img = img.astype(np.uint8)
 	else:
 		raise NotImplementedError(f'supported datatype: {img.dtype}')
