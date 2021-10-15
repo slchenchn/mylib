@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-09-13
+Last Modified: 2021-10-15
 	content: manipulate some basic types of python
 '''
 import random
@@ -16,17 +16,18 @@ import yaml
 from pandas.plotting import table
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+from colorama import Fore
 
 
 LINE_SEPARATOR = '-'*100
 
 
-def print_separate_line(message=None):
+def print_separate_line(message=None, color=None):
     ''' Print separate line with message '''
     if message is None:
-        str_ = f'\n{LINE_SEPARATOR}\n'
+        str_ = f'\n{color}{LINE_SEPARATOR}{Fore.RESET}\n'
     else:
-        str_ = f'\n{LINE_SEPARATOR}\n{message}\n{LINE_SEPARATOR}\n'
+        str_ = f'\n{color}{LINE_SEPARATOR}\n{message}\n{LINE_SEPARATOR}{Fore.RESET}\n'
 
     print(str_)
 
