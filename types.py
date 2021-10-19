@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-10-15
+Last Modified: 2021-10-19
 	content: manipulate some basic types of python
 '''
 import random
@@ -17,10 +17,18 @@ from pandas.plotting import table
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from colorama import Fore
+import re
 
 
 LINE_SEPARATOR = '-'*100
 
+
+def re_find_only_one(pattern, string):
+    ''' find only one match '''
+    match = re.findall(pattern, string)
+    assert len(match)==1, f'expect to get only one match, got {len(match)}'
+    return match[0]
+    
 
 def print_separate_line(message=None, color=None):
     ''' Print separate line with message '''

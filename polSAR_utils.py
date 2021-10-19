@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-09-17
+Last Modified: 2021-10-19
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -809,7 +809,7 @@ def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
     return np.stack((R, G, B), axis=2)
 
 
-def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False, is_print=False)->np.ndarray:
+def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False, is_print=False, boxcar_ksize=None)->np.ndarray:
     ''' Create the pseudo RGB image with s2 matrix
 
     Args:
@@ -845,6 +845,14 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False, is_
         G = (s12+s21) / 2
         B = s11
 
+    elif type == 'sinclairv2':
+        ''' used in SpaceNet 6 '''
+        R = s11
+        G = s22
+        B = s21
+    else:
+        raise NotImplementedError
+
     R[np.isnan(R)] = mathlib.eps
     G[np.isnan(G)] = mathlib.eps
     B[np.isnan(B)] = mathlib.eps
@@ -854,6 +862,18 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False, is_
         R = np.abs(R)
         G = np.abs(G)
         B = np.abs(B)
+
+    if boxcar_ksize is not None:
+        ''' filtering should at intensity level '''
+        R = np.square(R)
+        G = np.square(G)
+        B = np.square(B)
+        R = cv2.blur(R, (boxcar_ksize, boxcar_ksize))
+        G = cv2.blur(G, (boxcar_ksize, boxcar_ksize))
+        B = cv2.blur(B, (boxcar_ksize, boxcar_ksize))
+        R = np.sqrt(R)
+        G = np.sqrt(G)
+        B = np.sqrt(B)
 
     # logarithm transform, and normalize
     if if_log:
@@ -879,7 +899,8 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False, is_
     G = mathlib.min_max_contrast_median_map(G, mask=G_mask, is_print=is_print)
     B = mathlib.min_max_contrast_median_map(B, mask=B_mask, is_print=is_print)
 
-    return (np.stack((R, G, B), axis=2)*255).astype(np.uint8)
+    rgb = (np.stack((R, G, B), axis=2)*255).astype(np.uint8)
+    return rgb
 
 
 def write_hoekman_image(data, dst_path, is_print=False):
