@@ -9,6 +9,7 @@ from gpustat import GPUStatCollection
 import time
 import argparse
 import numpy as np
+from numpy import ndarray
 
 
 def wait_for_gpu(required_GB, interval=10):
@@ -30,11 +31,11 @@ def wait_for_gpu(required_GB, interval=10):
         gpu_stats = GPUStatCollection.new_query()
         mem_free = [gpu.memory_free for gpu in gpu_stats.gpus]
 
-        if required_MB < 0:
+        if (not isinstance(required_MB, ndarray)) and required_MB < 0:
             ''' maximum requriement, perseved 400MB for root or xorg'''
             required_MB = gpu_stats.gpus[0].memory_total-400
 
-        if not isinstance(required_MB, (tuple, list)):
+        if not isinstance(required_MB, (tuple, list, ndarray)):
             required_MB = [required_MB] * len(mem_free)
 
         mem_free = np.array(mem_free)
