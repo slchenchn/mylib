@@ -25,6 +25,7 @@ def wait_for_gpu(required_GB, interval=10):
     else:
         required_MB = required_GB * 1024
 
+    print(f'waiting for availabel gpu memory: {required_MB} MB ...')
     while True:
         gpu_stats = GPUStatCollection.new_query()
         mem_free = [gpu.memory_free for gpu in gpu_stats.gpus]
