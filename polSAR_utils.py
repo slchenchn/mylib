@@ -1,14 +1,13 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-07-05
+Last Modified: 2021-10-19
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
 import os
 import os.path as osp
 import math
-
 import numpy as np 
 from matplotlib import pyplot as plt 
 import cv2
@@ -19,6 +18,8 @@ from glob import glob
 import xml.etree.ElementTree as et
 import re
 import tifffile
+import warnings
+import h5py
 
 from mylib import file_utils as fu
 from mylib import image_utils as iu
@@ -313,6 +314,37 @@ def read_s2_GF3_L1A(path, file_ext='tiff', is_print=False):
     cimg.imag = img[1::2, ...]
     return cimg
     
+
+def read_csk_L1A_as_intensity(path, is_print=False):
+    ''' Read cosmo-skymed signle polsarization SAR product, only a version is supported
+    
+    Returns:
+        intensity (ndarray): intensity data
+    '''
+
+    if is_print:
+        print(f'reading {path}')
+
+    if osp.splitext(path)[1] != '.h5':
+        newpath = glob(osp.join(path, '*.h5'))
+        assert len(newpath) == 1, f'can not determine the .h5 file'
+        path = newpath
+
+    with h5py.File(path, 'r') as f:
+        assert len(f.keys()) == 1, \
+            f'expect the #keys of h5 file to be 1, but got {len(f.keys())}'
+        
+        s01 = f['S01']
+        groups_of_s01 = ['B001', 'QLK', 'SBI']
+        assert set(s01.keys()) == set(groups_of_s01), \
+            f'wrong keys of S01 group, expect to be {groups_of_s01}, got {s01.keys()}'
+        
+        compex_data = s01['SBI'][()]    #complex valued, in shape of hxwx2
+        assert compex_data.shape[2] == 2, f'expect two channels complex data, got {compex_data.shape[2]} channels'
+        compex_data = compex_data.astype(np.float32)
+        intensity = compex_data[..., 0]**2 + compex_data[..., 1]**2
+        return intensity
+
 
 def s22c3(path=None, s2=None):
     ''' Convert s2 data to C3 data
@@ -678,13 +710,15 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli', is_print=False, if_mask=False)-
     return np.stack((R, G, B), axis=2)
 
 
-def gray_by_intensity(data:np.ndarray, type='3sigma', if_log=True, is_print=False)->np.ndarray:
+def gray_by_intensity(data:np.ndarray, type='3sigma', if_log=True, if_mask=False, is_print=False)->np.ndarray:
     ''' Create the pseudo gray image with intensity values
 
     Args:
         data (ndarray): input polSAR data
         type (str): '3sigma' or 'log'. Default: '3sigma'
         if_log (bool): if do logarithm to data. Default: True
+        if_mask (bool): if to set mask to the invalid data, preventing it 
+            from computing the upper and lower bound
         is_print (bool): if to print debug infos. Default: False
 
     Returns:
@@ -694,6 +728,7 @@ def gray_by_intensity(data:np.ndarray, type='3sigma', if_log=True, is_print=Fals
     # check  
     assert np.all(np.isreal(data)), \
         r'Input param "data" Not a intensity image'
+    assert np.all(data>=0), f'input data should >=0'
 
     gray = data.copy()
 
@@ -707,9 +742,15 @@ def gray_by_intensity(data:np.ndarray, type='3sigma', if_log=True, is_print=Fals
         gray[gray>upperbound] = upperbound
     if type=='log' and if_log:
         gray = 10*np.log10(gray)
+    else:
+        raise NotImplementedError(f'unsuported type: {type}')
+
+    mask = None
+    if if_mask:
+        mask = gray > -150
 
     # normalize
-    gray = mathlib.min_max_contrast_median_map(gray, is_print=is_print)
+    gray = mathlib.min_max_contrast_median_map(gray, is_print=is_print, mask=mask)
     # gray = mathlib.min_max_map(gray)
 
     # print(R.shape, G.shape, B.shape)
@@ -768,7 +809,7 @@ def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
     return np.stack((R, G, B), axis=2)
 
 
-def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np.ndarray:
+def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False, is_print=False, boxcar_ksize=None)->np.ndarray:
     ''' Create the pseudo RGB image with s2 matrix
 
     Args:
@@ -779,7 +820,7 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
         if_mask (bool): if to set mask to the invalid data, preventing it 
             from computing the upper and lower bound
     Returns:
-        RGB data in [0, 255]
+        RGB data in [0, 255], or None is all the data is nan
     '''
 
     type = type.lower()
@@ -790,7 +831,11 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
     s22 = data[3, :, :]
 
     if type == 'pauli':
-        assert not np.all(np.isreal(data))
+        if data[~np.isnan(data)].size == 0:
+            warnings.warn(f'all of the data is nan!')
+            # return np.zeros((*data.shape[1:], 3))
+            return None
+        assert not np.all(np.isreal(data[~np.isnan(data)]))
         R = 0.5*np.conj(s11-s22)*(s11-s22)
         G = 2*np.conj(s12)*s12
         B = 0.5*np.conj(s11+s22)*(s11+s22)
@@ -800,11 +845,35 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
         G = (s12+s21) / 2
         B = s11
 
+    elif type == 'sinclairv2':
+        ''' used in SpaceNet 6 '''
+        R = s11
+        G = s22
+        B = s21
+    else:
+        raise NotImplementedError
+
+    R[np.isnan(R)] = mathlib.eps
+    G[np.isnan(G)] = mathlib.eps
+    B[np.isnan(B)] = mathlib.eps
+    
     # abs if complex data
     if not np.all(np.isreal(data)):
         R = np.abs(R)
         G = np.abs(G)
         B = np.abs(B)
+
+    if boxcar_ksize is not None:
+        ''' filtering should at intensity level '''
+        R = np.square(R)
+        G = np.square(G)
+        B = np.square(B)
+        R = cv2.blur(R, (boxcar_ksize, boxcar_ksize))
+        G = cv2.blur(G, (boxcar_ksize, boxcar_ksize))
+        B = cv2.blur(B, (boxcar_ksize, boxcar_ksize))
+        R = np.sqrt(R)
+        G = np.sqrt(G)
+        B = np.sqrt(B)
 
     # logarithm transform, and normalize
     if if_log:
@@ -826,11 +895,12 @@ def rgb_by_s2(data:np.ndarray, type:str='pauli', if_log=True, if_mask=False)->np
         B_mask = B > -150
 
     # min map map
-    R = mathlib.min_max_contrast_median_map(R, mask=R_mask)
-    G = mathlib.min_max_contrast_median_map(G, mask=G_mask)
-    B = mathlib.min_max_contrast_median_map(B, mask=B_mask)
+    R = mathlib.min_max_contrast_median_map(R, mask=R_mask, is_print=is_print)
+    G = mathlib.min_max_contrast_median_map(G, mask=G_mask, is_print=is_print)
+    B = mathlib.min_max_contrast_median_map(B, mask=B_mask, is_print=is_print)
 
-    return (np.stack((R, G, B), axis=2)*255).astype(np.uint8)
+    rgb = (np.stack((R, G, B), axis=2)*255).astype(np.uint8)
+    return rgb
 
 
 def write_hoekman_image(data, dst_path, is_print=False):

@@ -1,16 +1,18 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-27
-Last Modified: 2021-06-24
+Last Modified: 2021-10-18
 	content: my image utilities
 '''
 
-import cv2
-import numpy as np
 import os.path as osp
+import numpy as np
+from numpy import ndarray
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D  
 from torch import Tensor
+from PIL import Image
+import cv2
 
 from mylib import mathlib
 
@@ -53,14 +55,15 @@ def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True):
 		True if succeed, False otherwise
 	'''
 	if isinstance(img, Tensor):
-		img = img.numpy()
+		img = img.cpu().numpy()
 		
 	if img.dtype == np.uint8:
 		new_img = img
 	
-	elif img.dtype in (np.float32, np.float64):
+	elif img.dtype in (np.float32, np.float64, np.bool8):
 		
 		# add a new axis for grayscale image
+		img = img.astype(np.float32)
 		if img.ndim==2:
 			img = img[:, :, np.newaxis]
 
@@ -73,11 +76,29 @@ def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True):
 			sub_img = (255*sub_img).astype(np.uint8)
 			new_img[..., ii] = sub_img
 			
-	elif img.dtype == np.int64:
+	elif img.dtype in (np.int64, ):
 		new_img = img.astype(np.uint8)
+	else:
+		raise NotImplementedError(f'supported datatype: {img.dtype}')
 
 	new_img = new_img.squeeze()
 	return save_cv2_image_as_chinese_path(new_img, dst_path, is_bgr=is_bgr)
+
+
+def save_as_gif(images: list, filename:str, is_bgr=False, duration=700):
+	''' Save a list of images as a gif 
+	
+	Args:
+		filename (str): file name to be saved
+		duration (int): frame duration in mini-seconds of gif. Default: 700
+	'''
+
+	assert all(isinstance(img, (ndarray, Image.Image)) for img in images)
+	images = [np.asarray(img) for img in images]
+	if is_bgr:
+		images = [img[..., [2, 1, 0]] for img in images]
+	images = [Image.fromarray(img) for img in images]
+	images[0].save(filename, format='GIF', append_images=images[1:], duration=duration, loop=0, save_all=True)
 
 
 def plot_surface(img, cmap='jet'):

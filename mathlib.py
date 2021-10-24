@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-04-21
-Last Modified: 2021-05-30
+Last Modified: 2021-10-12
 	content: functions about general math
 '''
 
@@ -9,6 +9,23 @@ import numpy as np
 from numpy import ndarray
 
 eps = np.finfo(float).eps
+
+def num_intersect(arr1: ndarray, arr2: ndarray):
+    ''' Count number of comman values of two arrays 
+    
+    Returns:
+        intersect_x (float): percent of number of comman values in arrx with
+            respect to arrx
+    '''
+
+    
+    val_1, cnt_1 = np.unique(arr1, return_counts=True)
+    val_2, cnt_2 = np.unique(arr2, return_counts=True)
+    _, idx_1, idx_2 = np.intersect1d(val_1, val_2, return_indices=True)
+    intersect_1 = cnt_1[idx_1].sum() / cnt_1.sum()
+    intersect_2 = cnt_2[idx_2].sum() / cnt_2.sum()
+    return intersect_1, intersect_2
+
 
 def var_with_known_mean(data: ndarray, mean: ndarray, axis, ddof: int) -> ndarray:
     ''' Calculate variance with known mean value 
@@ -158,11 +175,16 @@ def min_max_contrast_median_map(data:np.ndarray, mask=None, is_print=False)->np.
 
 
 if __name__=='__main__':
+    ''' test num_intersect() '''
+    a = np.array([[1, 2, 3, 0], [1, 2, 3, 6]])
+    b = np.array([[1, 0, 1], [3, 1, 3], [0, 3,4]])
+    aa, bb = num_intersect(a, b)
+
     ''' test min_max_map() '''
-    a = np.array([[1, 4, 3], [2, 5, 8], [7, 6, 9]])
-    # b = min_max_map(a)
-    b = min_max_map(a, axis=1)
-    print(f'before\n{a}\nafter\n{b}')
+    # a = np.array([[1, 4, 3], [2, 5, 8], [7, 6, 9]])
+    # # b = min_max_map(a)
+    # b = min_max_map(a, axis=1)
+    # print(f'before\n{a}\nafter\n{b}')
 
 
     ''' test var_with_known_mean() '''
