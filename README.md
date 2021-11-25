@@ -11,6 +11,12 @@ A cluttered python library for myself, includeing:
 6. types.py: manipulate some basic types of python
 7. others
 
+## Install
+Just run
+
+    pip install -e .
+
+
 ## License
 This project is released under the [Apache 2.0 license](LICENSE).
 
