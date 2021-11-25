@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-09-03
+Last Modified: 2021-11-25
 	content: to manipulate file and folde 
 '''
 import os
@@ -41,3 +41,9 @@ def write_file_from_list(data:list, filepath):
     with open(filepath, 'w') as f:
         for item in data:
             f.write(f'{item}\n')
+
+
+def add_filename_suffix(filename, suffix):
+    ''' Add a suffix to filename (right before the extension part) '''
+    file_, ext = osp.splitext(filename)
+    return file_ + suffix + ext
