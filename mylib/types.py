@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2020-11-17
-Last Modified: 2021-10-19
+Last Modified: 2021-11-25
 	content: manipulate some basic types of python
 '''
 import random
@@ -22,6 +22,11 @@ import re
 
 LINE_SEPARATOR = '-'*100
 
+def rreplace(s, old, new, occurrence):
+    ''' Replace a string from the right '''
+    assert isinstance(s, str)
+    li = s.rsplit(old, occurrence)
+    return new.join(li)
 
 def re_find_only_one(pattern, string):
     ''' find only one match '''
