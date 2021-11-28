@@ -26,11 +26,14 @@ import warnings
 
 ''' usage: 
         1) run check_label_name()
-        ** mask label
         2) run json_to_dataset_batch()
         3) run generate_and_get_label_statistics()
         4) run get_label_statistics()
 '''
+
+
+label_names_all = ('_background_', 'water', 'farmland', 'unusedland', 'building', 'otherthings', 'mountainland', 'woodland', 'road')
+
 
 def get_corrds_from_slice_idx(img_shape:Union[tuple, list, np.ndarray], patch_shape:Union[tuple,list, np.ndarray], slice_idx:Union[str, int]):
     ''' get the coordinates of the up left corner of the patch in a big image
@@ -135,9 +138,10 @@ def my_json2dataset(json_file, lbl_names_all):
     for name, value in label_name_to_value.items():
         label_names[value] = name
 
-    lbl_viz = imgviz.label2rgb(
-        label=lbl, img=imgviz.asgray(img), label_names=label_names, loc="rb"
-    )
+    lbl_viz = imgviz.label2rgb(lbl,
+                            imgviz.asgray(img),
+                            label_names=label_names,
+                            loc="rb")
 
     PIL.Image.fromarray(img).save(osp.join(out_dir, "img.png"))
     labelme.utils.lblsave(osp.join(out_dir, "label.png"), lbl)
@@ -265,7 +269,7 @@ def get_label_statistics(src_path:str, label_names_all:Union[list, tuple]):
             cls_cnt += hist.astype(np.uint32)
     
         for file in files:              # chagne detection labels
-            if '-change' in file:
+            if '-change.png' in file:
                 lbl_idx = read_change_label_png(osp.join(dirpath, file))
                 change_cnt[0] += (lbl_idx==2).sum()
                 change_cnt[1] += 512**2
@@ -293,6 +297,9 @@ def generate_change_label(src_path:str,
         if 'pin.txt' in files:      # find the control points     
             print('processing ', dirpath)
             for fdr_a, fdr_b in itertools.combinations(sub_dirs, 2):   #select two of all the folders
+                if int(fdr_a) > int(fdr_b):
+                    # 保证始终先拍摄的在前面
+                    fdr_a, fdr_b = fdr_b, fdr_a
                 for json_folder in os.listdir(os.path.join(dirpath, fdr_a)):
                     if os.path.isdir(os.path.join(dirpath, fdr_a, json_folder)):
                         if sensor == 'RS2': # patch number，RS2 这里是 4 位数字，GF3这里是3位数字，需要注意
@@ -324,10 +331,13 @@ def generate_change_label(src_path:str,
                             lbl_cd_idx[lbl_idx_a==ot_idx] = 0
                             lbl_cd_idx[lbl_idx_b==ot_idx] = 0
 
-                        print(os.path.join(dirpath, fdr_a+'-'+ fdr_b + '-' + number + '-change.png'))
+                        label_path = os.path.join(dirpath, fdr_a+'--'+fdr_b + '-'+number+'-change.png')
+                        print(label_path)
+                        # if label_path == r'/home/csl/code/preprocess/data/SAR_CD/RS2/label/苏州/20090831--20130927-0080-change.png':
+                        #     print()
                         # clrmap = np.array([[0,0,0],[255, 255, 255],[0,255,0]])
                         clrmap = np.array([[128, 128, 128], [0, 0, 0], [255, 255, 255]])
-                        lblsave(os.path.join(dirpath, fdr_a+'--'+fdr_b + '-'+number+'-change.png'), lbl_cd_idx, clrmap)
+                        lblsave(label_path, lbl_cd_idx, clrmap)
                         change_cnt[0] += (lbl_cd_idx==2).sum()
                         change_cnt[1] += 512**2
                         # if not cv2.imwrite(os.path.join(dirpath, fdr_a+'-'+fdr_b + '-change.png'), lbl_cd_idx):
@@ -335,7 +345,7 @@ def generate_change_label(src_path:str,
     return change_cnt
 
 
-def check_label_name(src_path, lbl_names_all):
+def check_label_name(src_path, lbl_names_all, if_print=False):
     ''' check whether the category names in label_names.txt belongs to a specified name set 
         @in     -src_path       - root path, all of whose files should be checked
                 -lbl_names_all  - specified name set
@@ -346,11 +356,13 @@ def check_label_name(src_path, lbl_names_all):
         for file in files:
             if '.json' in file:
                     with open(osp.join(root, file)) as f:
+                        if if_print:
+                            print(f'checking label name of {osp.join(root, file)}')
                         data = json.load(f)
                         for shape in data["shapes"]:
                             label_name = shape["label"]
                             if label_name not in lbl_names_all:
-                                print(f'undefined {label_name} in {osp.join(root, file)}')
+                                raise ValueError(f'undefined {label_name} in {osp.join(root, file)}')
 
     print('check done')
 
