@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-10-19
+Last Modified: 2021-12-09
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -992,7 +992,7 @@ def exact_patch_C3(src_path, roi, dst_path=None, if_mask=False):
     write_c3(dst_path, c3)
     
     pauli_roi = pauli[ys:ye, xs:xe, :]
-    cv2.imwrite(osp.join(dst_path, 'pauliRGB.bmp'), cv2.cvtColor((pauli_roi*255).astype(np.uint8), cv2.COLOR_BGR2RGB))
+    cv2.imwrite(osp.join(dst_path, 'PauliRGB.bmp'), cv2.cvtColor((pauli_roi*255).astype(np.uint8), cv2.COLOR_BGR2RGB))
 
 
 def exact_patch_s2(src_path, roi, dst_path=None, if_mask=False):
