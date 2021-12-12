@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-12-09
+Last Modified: 2021-12-12
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -978,7 +978,7 @@ def exact_patch_C3(src_path, roi, dst_path=None, if_mask=False):
     c3 = read_c3(src_path)
     pauli = rgb_by_c3(c3, if_mask=if_mask)
     
-    fu.mkdir_if_not_exist(dst_path)
+    os.makedirs(dst_path, exist_ok=True)
 
     with open(osp.join(dst_path, 'README.txt'), 'w') as f:
         f.write(f'Original file path: {src_path}\nROI: {roi}\nin the format of (x, y, w, h), where x and y are the coordinates the lower right corner')
