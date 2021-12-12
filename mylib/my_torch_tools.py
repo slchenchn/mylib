@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-04-03
-Last Modified: 2021-05-24
+Last Modified: 2021-12-11
 	content: 
 '''
 import torch
@@ -9,11 +9,36 @@ from torch._six import inf
 from typing import Union, Iterable
 from torch import Tensor
 import numpy as np
+from matplotlib import pyplot as plt
 
 from mylib import mathlib
 
 
 _tensor_or_tensors = Union[torch.Tensor, Iterable[torch.Tensor]]
+
+
+def draw_from_dict(vis_list:list):
+    
+    def namestr(obj):
+        return [name for name in globals() if globals()[name] is obj][0]
+
+    rows = 2
+    while True: #rearange fig to find a suitable array 
+        cols = int((len(vis_list) -0.01) // int(rows) + 1)
+        if  (rows - cols) < 2:
+            break
+        rows += 1
+
+    fig, axes = plt.subplots(rows,cols)
+    axes = axes.flatten()
+    #plot feature
+    for ax, item in zip(axes, vis_list):
+        ax.axis('off')
+        ax.matshow(item.detach().cpu())
+        name = namestr(item) #get name
+        ax.set_title(name)
+    plt.savefig('tmp')
+    plt.close()
 
 
 def get_params_norm(parameters: _tensor_or_tensors, norm_type: float = 2.0, sta_type=('total')) -> torch.Tensor:
