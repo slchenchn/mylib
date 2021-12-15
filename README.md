@@ -17,7 +17,8 @@ Download this repo and run
     pip install -e .
 
 or install directly without downloading:
-    pip install git+https://github.com/yoyoyoohh/mylib.git@master8.json
+
+    pip install git+https://github.com/yoyoyoohh/mylib.git@master
 
 ## License
 This project is released under the [Apache 2.0 license](LICENSE).
