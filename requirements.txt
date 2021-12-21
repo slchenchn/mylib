@@ -2,3 +2,4 @@ labelme
 pandas
 colorama
 gpustat
+h5py
