@@ -6,3 +6,5 @@ build/
 develop-eggs/
 *.egg
 *version.py
+version.py
+*.egg-info
