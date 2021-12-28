@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-12-12
+Last Modified: 2021-12-28
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -20,12 +20,12 @@ import re
 import tifffile
 import warnings
 import h5py
-
-from mylib import file_utils as fu
-from mylib import image_utils as iu
 from typing import Union
-from mylib import mathlib
-from mylib import my_torch_tools as mt
+
+import file_utils as fu
+import image_utils as iu
+import mathlib
+import my_torch_tools as mt
 
 c3_bin_files = ['C11.bin', 'C12_real.bin', 'C12_imag.bin', 'C13_real.bin', 
             'C13_imag.bin', 'C22.bin', 'C23_real.bin', 'C23_imag.bin',
