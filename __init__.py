@@ -14,7 +14,7 @@ Last Modified: 2021-12-28
 from .mylib import types
 from .mylib import utils
 from .mylib import labelme_utils
-from .mylib import PolSAR
+from .mylib import polSAR_utils
 from .mylib import labelme_utils
 from .mylib import image_utils
 from .mylib import my_torch_tools
