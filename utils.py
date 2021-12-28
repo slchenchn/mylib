@@ -14,70 +14,100 @@ from numpy import ndarray
 
 from gpustat import GPUStatCollection
 from blessings import Terminal
+import locale
 
 
-def log_gpu_info(self, 
-                logger,
-                force_color=False,
-                no_color=False,
-                show_cmd=False,
-                show_user=False,
-                show_pid=False,
-                show_power=None,
-                show_fan_speed=None,
-                gpuname_width=16,
-                show_header=True,
-                eol_char=os.linesep,
-                ):
-        # ANSI color configuration
-        if force_color and no_color:
-            raise ValueError("--color and --no_color can't"
-                             " be used at the same time")
+class MyGPUStatCollection(GPUStatCollection):
 
-        if force_color:
-            t_color = Terminal(kind='linux', force_styling=True)
+    def __init__(self,
+                gpu_stat_collection=None,
+                gpu_list=None,
+                driver_version=None):
 
-            # workaround of issue #32 (watch doesn't recognize sgr0 characters)
-            t_color.normal = u'\x1b[0;10m'
-        elif no_color:
-            t_color = Terminal(force_styling=None)
+        if gpu_stat_collection is not None:
+            self.gpus = gpu_stat_collection.gpus
+            self.hostname = gpu_stat_collection.hostname
+            self.query_time = gpu_stat_collection.query_time
+            self.driver_version = gpu_stat_collection.driver_version
         else:
-            t_color = Terminal()   # auto, depending on isatty
+            super().__init__(gpu_list, driver_version=driver_version)
 
-        # appearance settings
-        entry_name_width = [len(g.entry['name']) for g in self]
-        gpuname_width = max([gpuname_width or 0] + entry_name_width)
+    @staticmethod
+    def new_query():
+        return MyGPUStatCollection(GPUStatCollection.new_query())
 
-        # header
-        if show_header:
-            time_format = locale.nl_langinfo(locale.D_T_FMT)
+    def log_gpu_info_json(self, logger):
+        def date_handler(obj):
+            if hasattr(obj, 'isoformat'):
+                return obj.isoformat()
+            else:
+                raise TypeError(type(obj))
 
-            header_template = '{t.bold_white}{hostname:{width}}{t.normal}  '
-            header_template += '{timestr}  '
-            header_template += '{t.bold_black}{driver_version}{t.normal}'
+        o = self.jsonify()
+        logger.info(o)
 
-            header_msg = header_template.format(
-                    hostname=self.hostname,
-                    width=gpuname_width + 3,  # len("[?]")
-                    timestr=self.query_time.strftime(time_format),
-                    driver_version=self.driver_version,
-                    t=t_color,
-                )
+    def log_gpu_info(self,
+                    logger,
+                    force_color=False,
+                    no_color=False,
+                    show_cmd=False,
+                    show_user=False,
+                    show_pid=False,
+                    show_power=None,
+                    show_fan_speed=None,
+                    gpuname_width=16,
+                    show_header=True,
+                    eol_char=os.linesep,
+                    ):
+            # ANSI color configuration
+            if force_color and no_color:
+                raise ValueError("--color and --no_color can't"
+                                " be used at the same time")
 
-            logger.info(header_msg.strip())
-            logger.info(eol_char)
+            if force_color:
+                t_color = Terminal(kind='linux', force_styling=True)
 
-        # body
-        for g in self:
-            g.print_to(fp,
-                       show_cmd=show_cmd,
-                       show_user=show_user,
-                       show_pid=show_pid,
-                       show_power=show_power,
-                       show_fan_speed=show_fan_speed,
-                       gpuname_width=gpuname_width,
-                       term=t_color)
-            logger.info(eol_char)
+                # workaround of issue #32 (watch doesn't recognize sgr0 characters)
+                t_color.normal = u'\x1b[0;10m'
+            elif no_color:
+                t_color = Terminal(force_styling=None)
+            else:
+                t_color = Terminal()   # auto, depending on isatty
+
+            # appearance settings
+            entry_name_width = [len(g.entry['name']) for g in self]
+            gpuname_width = max([gpuname_width or 0] + entry_name_width)
+
+            # header
+            if show_header:
+                time_format = locale.nl_langinfo(locale.D_T_FMT)
+
+                header_template = '{t.bold_white}{hostname:{width}}{t.normal}  '
+                header_template += '{timestr}  '
+                header_template += '{t.bold_black}{driver_version}{t.normal}'
+
+                header_msg = header_template.format(
+                        hostname=self.hostname,
+                        width=gpuname_width + 3,  # len("[?]")
+                        timestr=self.query_time.strftime(time_format),
+                        driver_version=self.driver_version,
+                        t=t_color,
+                    )
+
+                logger.info(header_msg.strip())
+                logger.info(eol_char)
+
+            # body
+            for g in self:
+                g.print_to(fp,
+                        show_cmd=show_cmd,
+                        show_user=show_user,
+                        show_pid=show_pid,
+                        show_power=show_power,
+                        show_fan_speed=show_fan_speed,
+                        gpuname_width=gpuname_width,
+                        term=t_color)
+                logger.info(eol_char)
 
 
 def wait_for_gpu(required_GB, interval=10):
