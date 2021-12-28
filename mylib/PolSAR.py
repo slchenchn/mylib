@@ -1,10 +1,11 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-13
-Last Modified: 2021-05-19
+Last Modified: 2021-12-28
 	content: advance version of polSAR_utils.py, written in objection-oriented style, **undone**.
 '''
 
+"""
 import os
 import os.path as osp
 import math
@@ -293,3 +294,4 @@ class PolSAR():
         else:
             return data_format
 
+"""
