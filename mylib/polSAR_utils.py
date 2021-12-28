@@ -22,10 +22,10 @@ import warnings
 import h5py
 from typing import Union
 
-import file_utils as fu
-import image_utils as iu
-import mathlib
-import my_torch_tools as mt
+from . import file_utils as fu
+from . import image_utils as iu
+from . import mathlib
+from . import my_torch_tools as mt
 
 c3_bin_files = ['C11.bin', 'C12_real.bin', 'C12_imag.bin', 'C13_real.bin', 
             'C13_imag.bin', 'C22.bin', 'C23_real.bin', 'C23_imag.bin',

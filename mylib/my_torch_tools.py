@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-04-03
-Last Modified: 2021-12-11
+Last Modified: 2021-12-28
 	content: 
 '''
 import torch
@@ -11,7 +11,7 @@ from torch import Tensor
 import numpy as np
 from matplotlib import pyplot as plt
 
-from mylib import mathlib
+from . import mathlib
 
 
 _tensor_or_tensors = Union[torch.Tensor, Iterable[torch.Tensor]]

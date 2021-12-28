@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-27
-Last Modified: 2021-10-18
+Last Modified: 2021-12-28
 	content: my image utilities
 '''
 
@@ -14,7 +14,7 @@ from torch import Tensor
 from PIL import Image
 import cv2
 
-from mylib import mathlib
+from . import mathlib
 
 
 
