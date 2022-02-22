@@ -3,3 +3,4 @@ pandas
 colorama
 gpustat
 h5py
+einops

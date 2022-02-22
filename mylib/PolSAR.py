@@ -1,8 +1,9 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-13
-Last Modified: 2021-12-28
-	content: advance version of polSAR_utils.py, written in objection-oriented style, **undone**.
+Last Modified: 2022-02-21
+	content: advanced version of polSAR_utils.py, written in objection-oriented style, 
+    NOTE: **undone**.
 '''
 
 """
