@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2021-12-28
+Last Modified: 2022-02-24
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -37,7 +37,7 @@ t3_bin_files = ['T11.bin', 'T12_real.bin', 'T12_imag.bin', 'T13_real.bin',
 
 s2_bin_files = ['s11.bin', 's12.bin', 's21.bin', 's22.bin']
 
-hdr_elements = ['samples', 'lines', 'byte order', 'data type', 'interleave']
+hdr_elements = ['samples', 'lines', 'byte order', 'data type', 'interleave', 'bands']
 
 data_type = ['uint8', 'int16', 'int32', 'float32', 'float64', 'uint16', 'uint32', 'int64', 'uint64']
 

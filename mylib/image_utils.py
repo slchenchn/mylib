@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-27
-Last Modified: 2022-01-23
+Last Modified: 2022-02-24
 	content: my image utilities
 '''
 
@@ -18,7 +18,7 @@ from . import mathlib
 
 
 
-def save_cv2_image_as_chinese_path(img, dst_path, is_bgr=False):
+def save_cv2_image_as_chinese_path(img, dst_path, is_bgr=False, **kargs):
 	''' using cv2 to saving image in chinese path
 
 	Args:
@@ -29,7 +29,7 @@ def save_cv2_image_as_chinese_path(img, dst_path, is_bgr=False):
 	if not is_bgr:
 		img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 	ext_name = osp.splitext(dst_path)[1]
-	cv2.imencode(ext_name, img)[1].tofile(dst_path)
+	cv2.imencode(ext_name, img, **kargs)[1].tofile(dst_path)
 
 
 def read_cv2_image_as_chinese_path(img_path, dtype=np.uint8):
@@ -42,7 +42,7 @@ def read_cv2_image_as_chinese_path(img_path, dtype=np.uint8):
 	return cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), -1)
 
 
-def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True):
+def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True, **kargs):
 	''' Save image by cv2.imwrite, this function automatic transforms the data range and data type to adapt to cv2 
 
 	Args:
@@ -67,14 +67,18 @@ def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True):
 		if img.ndim==2:
 			img = img[:, :, np.newaxis]
 
-		new_img = np.empty_like(img, dtype=np.uint8)
 
-		for ii in range(img.shape[2]):
-			sub_img = img[..., ii]
-			if if_norm:
-				sub_img = mathlib.min_max_map(sub_img)
-			sub_img = (255*sub_img).astype(np.uint8)
-			new_img[..., ii] = sub_img
+		new_img = mathlib.min_max_map(img, axis=2)
+		new_img = (255 * new_img).astype(np.uint8)
+
+		# new_img = np.empty_like(img, dtype=np.uint8)
+
+		# for ii in range(img.shape[2]):
+		# 	sub_img = img[..., ii]
+		# 	if if_norm:
+		# 		sub_img = mathlib.min_max_map(sub_img)
+		# 	sub_img = (255*sub_img).astype(np.uint8)
+		# 	new_img[..., ii] = sub_img
 			
 	elif img.dtype in (np.int64, ):
 		new_img = img.astype(np.uint8)
@@ -82,7 +86,7 @@ def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True):
 		raise NotImplementedError(f'supported datatype: {img.dtype}')
 
 	new_img = new_img.squeeze()
-	return save_cv2_image_as_chinese_path(new_img, dst_path, is_bgr=is_bgr)
+	return save_cv2_image_as_chinese_path(new_img, dst_path, is_bgr=is_bgr, **kargs)
 
 
 def pil_read_img(path:str):
