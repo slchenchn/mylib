@@ -19,7 +19,7 @@ Download this repo and run
 
 or install directly without manullay downloading:
 
-    pip install git+https://github.com/slchenchn/mylib.git@master
+    pip install git+https://github.com/yoyoyoohh/mylib.git@master
 
 ## License
 This project is released under the [Apache 2.0 license](LICENSE).
