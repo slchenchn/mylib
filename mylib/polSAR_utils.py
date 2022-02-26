@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2022-02-24
+Last Modified: 2022-02-26
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -315,6 +315,31 @@ def read_s2_GF3_L1A(path, file_ext='tiff', is_print=False):
     return cimg
     
 
+def read_s2_MA60_L1B(dir_path, verbose=False):
+	''' Read S2 data from MA60 L1B data '''
+
+	if verbose:
+		print(f'Reading MA60 L1B data from {dir_path}')
+
+	# seek for tiff files
+	tifs = glob(osp.join(dir_path, '*.slc.tiff'))
+	tifs.sort()
+
+	# read tiff
+	img = [tifffile.imread(tif) for tif in tifs]
+	img = np.concatenate(img, axis=2)
+	img = img.transpose(2, 0, 1) 
+
+	cimg = np.empty(shape=(4, *img.shape[1: ]), dtype=np.complex64)
+	cimg.real = img[::2, ...]
+	cimg.imag = img[1::2, ...]
+
+	if verbose:
+		print(f'image shape: {cimg.shape}\n')  
+		 
+	return cimg
+
+    
 def read_csk_L1A_as_intensity(path, is_print=False):
     ''' Read cosmo-skymed signle polsarization SAR product, only a version is supported
     
