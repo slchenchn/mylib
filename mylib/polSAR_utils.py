@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2022-02-26
+Last Modified: 2022-03-18
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -45,14 +45,14 @@ def check_c3_path(path:str)->str:
     '''check the path whether contains the c3 folder, if not, add it'''
     if path[-3:] != r'\C3' and path[-3:] != r'/C3' and (not osp.isfile(osp.join(path, 'config.txt'))):
         # print(path[-3:])
-        path = os.path.join(path, 'C3')
+        path = osp.join(path, 'C3')
     return path
 
 
 def check_s2_path(path:str)->str:
     '''check the path whether contains the s2 folder, if not, add it'''
     if path[-3:] != r'\s2' and path[-3:] != r'/s2' and (not osp.isfile(osp.join(path, 's11.bin'))):
-        path = os.path.join(path, 's2')
+        path = osp.join(path, 's2')
     return path
 
 
@@ -69,16 +69,21 @@ def read_s2_config(path:str)->dict:
     return s2_info
 
 
-def read_hdr(path:str, file='C11.bin')->dict:
+def read_hdr(path=None, file='C11.bin', file_path=None)->dict:
     ''' Read header file of C3 file
     
     Args:
-        path (str): path to the hdr file
-        file (str): from whom the header file will be readed
+        path (str): dir path, will only be used when file_path is
+            not specified
+        file (str): from whom the header file will be readed, will
+            only be used when file_path is not specified
+        file_path (str): file path
     '''
     # path = check_c3_path(path)
     meta_info = dict()
-    with open(os.path.join(path, file+'.hdr'), 'r') as hdr:
+    if file_path is None:
+        file_path = osp.join(path, file+'.hdr')
+    with open(file_path, 'r') as hdr:
         for line in hdr:
             # print(line)
             sp = line.split('=')
@@ -137,32 +142,32 @@ def read_c3(path:str, out:str='complex_vector_6', meta_info=None, count=-1, offs
         meta_info = read_hdr(path)
 
     # read binary files
-    c11 = np.fromfile(os.path.join(path, 'C11.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
+    c11 = np.fromfile(osp.join(path, 'C11.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
     c11 = c11.reshape(int(meta_info['lines']), int(meta_info['samples']))
 
-    # print(os.path.join(path, 'C12_real.bin'))
-    c12_real = np.fromfile(os.path.join(path, 'C12_real.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
+    # print(osp.join(path, 'C12_real.bin'))
+    c12_real = np.fromfile(osp.join(path, 'C12_real.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
     c12_real = c12_real.reshape(int(meta_info['lines']), int(meta_info['samples']))
     
-    c12_img = np.fromfile(os.path.join(path, 'C12_imag.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
+    c12_img = np.fromfile(osp.join(path, 'C12_imag.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
     c12_img = c12_img.reshape(int(meta_info['lines']), int(meta_info['samples']))
     
-    c13_real = np.fromfile(os.path.join(path, 'C13_real.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
+    c13_real = np.fromfile(osp.join(path, 'C13_real.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
     c13_real = c13_real.reshape(int(meta_info['lines']), int(meta_info['samples']))
     
-    c13_img = np.fromfile(os.path.join(path, 'C13_imag.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
+    c13_img = np.fromfile(osp.join(path, 'C13_imag.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
     c13_img = c13_img.reshape(int(meta_info['lines']), int(meta_info['samples']))
 
-    c22 = np.fromfile(os.path.join(path, 'C22.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
+    c22 = np.fromfile(osp.join(path, 'C22.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
     c22 = c22.reshape(int(meta_info['lines']), int(meta_info['samples']))
     
-    c23_real = np.fromfile(os.path.join(path, 'C23_real.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
+    c23_real = np.fromfile(osp.join(path, 'C23_real.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
     c23_real = c23_real.reshape(int(meta_info['lines']), int(meta_info['samples']))
     
-    c23_img = np.fromfile(os.path.join(path, 'C23_imag.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
+    c23_img = np.fromfile(osp.join(path, 'C23_imag.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
     c23_img = c23_img.reshape(int(meta_info['lines']), int(meta_info['samples']))
     
-    c33 = np.fromfile(os.path.join(path, 'C33.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
+    c33 = np.fromfile(osp.join(path, 'C33.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
     c33 = c33.reshape(int(meta_info['lines']), int(meta_info['samples']))
 
     # constructe to the specified data format
@@ -217,6 +222,24 @@ def read_s2(path:str, meta_info=None, count=-1, offset=0, is_print=None)->np.nda
 
     s2 = np.stack((s11, s12, s21, s22), axis=0)
     return s2
+
+
+def read_ENVI_standard_single(hdr_path, meta_info=None, count=-1, offset=0, verbose=False)->np.ndarray:
+    ''' read single polarization data in standard ENVI format
+    
+    Returns
+        dat (ndarray): complex-valued matrix shape of [height x width]
+    '''
+    path = check_s2_path(path)
+    if verbose:
+        print('reading from ', hdr_path)
+
+    if meta_info is None:
+        meta_info = read_hdr(file_path=hdr_path)
+
+    dat = np.fromfile(hdr_path.replace('hdr', 'img'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
+
+    return dat
 
 
 def read_c3_GF3_L2(path, is_print=False):
@@ -785,7 +808,7 @@ def gray_by_intensity(data:np.ndarray, type='3sigma', if_log=True, if_mask=False
     return (gray*255).astype(np.uint8 )
 
 
-def rgb_by_t3(data:np.ndarray, type:str='pauli')->np.ndarray:
+def rgb_by_t3(data:np.ndarray, type:str='pauli', if_mask=False)->np.ndarray:
     ''' @brief   -create the pseudo RGB image with covariance matrix
     @in      -data  -input polSAR data
     @in      -type  -'pauli' or 'sinclair'

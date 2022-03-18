@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-27
-Last Modified: 2022-02-24
+Last Modified: 2022-03-13
 	content: my image utilities
 '''
 
@@ -68,7 +68,7 @@ def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True, **kargs):
 			img = img[:, :, np.newaxis]
 
 
-		new_img = mathlib.min_max_map(img, axis=2)
+		new_img = mathlib.min_max_map(img, axis=(0, 1))
 		new_img = (255 * new_img).astype(np.uint8)
 
 		# new_img = np.empty_like(img, dtype=np.uint8)
