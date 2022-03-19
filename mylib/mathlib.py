@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-04-21
-Last Modified: 2021-10-12
+Last Modified: 2022-03-19
 	content: functions about general math
 '''
 
@@ -118,7 +118,7 @@ def mat_mul_dot(a: ndarray, b: ndarray) -> ndarray:
 
     
 
-def min_max_contrast_median(data:np.ndarray, mask=None):
+def min_max_contrast_median(data:np.ndarray, mask=None, max_iter=3):
     ''' Use the iterative method to get special min and max value
 
     Args:
@@ -141,13 +141,13 @@ def min_max_contrast_median(data:np.ndarray, mask=None):
     med = np.median(data)
     med1 = med.copy()       # the minimum value
     med2 = med.copy()       # the maximum value
-    for ii in range(3):
+    for _ in range(max_iter):
         part_min = data[data<med1]
         if len(part_min) > 0:
             med1 = np.median(part_min)
         else:
             break
-    for ii in range(3):
+    for _ in range(max_iter):
         part_max = data[data>med2]
         if len(part_max) > 0:
             med2 = np.median(part_max)
@@ -156,7 +156,7 @@ def min_max_contrast_median(data:np.ndarray, mask=None):
     return med1, med2
 
 
-def min_max_contrast_median_map(data:np.ndarray, mask=None, is_print=False)->np.ndarray:
+def min_max_contrast_median_map(data:np.ndarray, mask=None, is_print=False, max_iter=3)->np.ndarray:
     '''Map all the elements of x into [0,1] using min_max_contrast_median function
 
     Args:
@@ -168,7 +168,7 @@ def min_max_contrast_median_map(data:np.ndarray, mask=None, is_print=False)->np.
     Returns:
         the nomalized np.ndarray
     '''
-    min, max = min_max_contrast_median(data, mask=mask)
+    min, max = min_max_contrast_median(data, mask=mask, max_iter=max_iter)
     if is_print:
         print(f'min: {min}, max: {max}')
     return np.clip((data-min)/(max - min), a_min=0, a_max=1)

@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2022-03-18
+Last Modified: 2022-03-19
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -39,7 +39,9 @@ s2_bin_files = ['s11.bin', 's12.bin', 's21.bin', 's22.bin']
 
 hdr_elements = ['samples', 'lines', 'byte order', 'data type', 'interleave', 'bands']
 
+new_data_type = ['u1', 'i2', 'i4', 'f4', 'f8', 'u2', 'u4', 'i8', 'u8']
 data_type = ['uint8', 'int16', 'int32', 'float32', 'float64', 'uint16', 'uint32', 'int64', 'uint64']
+byte_order = ['<', '>']
 
 def check_c3_path(path:str)->str:
     '''check the path whether contains the c3 folder, if not, add it'''
@@ -141,6 +143,9 @@ def read_c3(path:str, out:str='complex_vector_6', meta_info=None, count=-1, offs
     if meta_info is None:
         meta_info = read_hdr(path)
 
+    if meta_info['byte order'] == 1:
+        raise NotImplementedError('not implement solutions for big-endian data')
+
     # read binary files
     c11 = np.fromfile(osp.join(path, 'C11.bin'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
     c11 = c11.reshape(int(meta_info['lines']), int(meta_info['samples']))
@@ -203,6 +208,9 @@ def read_s2(path:str, meta_info=None, count=-1, offset=0, is_print=None)->np.nda
     if meta_info is None:
         meta_info = read_s2_config(path)
 
+    if meta_info['byte order'] == 1:
+        raise NotImplementedError('not implement solutions for big-endian data')
+
     s11 = np.fromfile(osp.join(path, 's11.bin'), dtype=np.float32, count=count, offset=offset)
     s12 = np.fromfile(osp.join(path, 's12.bin'), dtype=np.float32, count=count, offset=offset)
     s21 = np.fromfile(osp.join(path, 's21.bin'), dtype=np.float32, count=count, offset=offset)
@@ -229,15 +237,19 @@ def read_ENVI_standard_single(hdr_path, meta_info=None, count=-1, offset=0, verb
     
     Returns
         dat (ndarray): complex-valued matrix shape of [height x width]
+
+    NOTE: the retured data type is the same as the original data type of the file 
     '''
-    path = check_s2_path(path)
+    
     if verbose:
         print('reading from ', hdr_path)
 
     if meta_info is None:
         meta_info = read_hdr(file_path=hdr_path)
-
-    dat = np.fromfile(hdr_path.replace('hdr', 'img'), dtype=data_type[int(meta_info['data type'])-1], count=count, offset=offset)
+    dtype = byte_order[int(meta_info['byte order'])] \
+            + new_data_type[int(meta_info['data type'])-1]
+    dat = np.fromfile(hdr_path.replace('hdr', 'img'), dtype=dtype, count=count, offset=offset)
+    dat = dat.reshape(int(meta_info['lines']), int(meta_info['samples']))
 
     return dat
 
@@ -761,7 +773,7 @@ def rgb_by_c3(data:np.ndarray, type:str='pauli', is_print=False, if_mask=False)-
     return np.stack((R, G, B), axis=2)
 
 
-def gray_by_intensity(data:np.ndarray, type='3sigma', if_log=True, if_mask=False, is_print=False)->np.ndarray:
+def gray_by_intensity(data:np.ndarray, type='3sigma', if_log=True, if_mask=False, is_print=False, norm_max_iter=3)->np.ndarray:
     ''' Create the pseudo gray image with intensity values
 
     Args:
@@ -784,27 +796,33 @@ def gray_by_intensity(data:np.ndarray, type='3sigma', if_log=True, if_mask=False
     gray = data.copy()
 
     # clip
-    gray[gray<mathlib.eps] = mathlib.eps
+    gray[gray<1] = 1
+    # gray[gray<mathlib.eps] = mathlib.eps
 
     if type == '3sigma':
         mean = gray.mean()
         std = gray.std()
         upperbound = mean + 3*std
         gray[gray>upperbound] = upperbound
-    if type=='log' and if_log:
+        # lowerbound = mean - 3*std
+        # gray[gray<lowerbound] = lowerbound
+        # gray = np.clip(gray, a_min=np.percentile(gray, 1),
+        #                 a_max=np.percentile(gray,  99))
+        gray = mathlib.min_max_map(gray)
+    elif type=='log' and if_log:
         gray = 10*np.log10(gray)
+        
+        mask = None
+        if if_mask:
+            mask = gray > -150
+
+        gray = mathlib.min_max_contrast_median_map(gray, is_print=is_print, mask=mask, max_iter=norm_max_iter)
+
     else:
         raise NotImplementedError(f'unsuported type: {type}')
 
-    mask = None
-    if if_mask:
-        mask = gray > -150
-
-    # normalize
-    gray = mathlib.min_max_contrast_median_map(gray, is_print=is_print, mask=mask)
     # gray = mathlib.min_max_map(gray)
 
-    # print(R.shape, G.shape, B.shape)
     return (gray*255).astype(np.uint8 )
 
 
