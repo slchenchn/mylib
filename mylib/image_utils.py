@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-27
-Last Modified: 2022-03-13
+Last Modified: 2022-03-30
 	content: my image utilities
 '''
 
@@ -92,6 +92,10 @@ def save_image_by_cv2(img, dst_path, is_bgr=False, if_norm=True, **kargs):
 def pil_read_img(path:str):
 	''' Read image using PIL package and convert to numpy '''
 	return np.asarray(Image.open(path))
+
+
+def pil_save_img(img: ndarray, path:str):
+	return Image.fromarray(img).save(path)
 
 
 def save_as_gif(images: list, filename:str, is_bgr=False, duration=700):
