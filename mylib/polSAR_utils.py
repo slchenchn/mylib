@@ -1,7 +1,7 @@
 '''
 Author: Shuailin Chen
 Created Date: 2021-05-19
-Last Modified: 2022-03-19
+Last Modified: 2022-04-08
 	content: useful functions for polarimtric SAR data, written in early days
 '''
 
@@ -358,6 +358,7 @@ def read_s2_MA60_L1B(dir_path, verbose=False):
 
     # seek for tiff files
     tifs = glob(osp.join(dir_path, '*.slc.tiff'))
+    # assert len(tifs)
     tifs.sort()
 
     # read tiff
@@ -368,7 +369,7 @@ def read_s2_MA60_L1B(dir_path, verbose=False):
     img = img.transpose(2, 1, 0)
     img = img[:, ::-1, :]
 
-    cimg = np.empty(shape=(4, *img.shape[1: ]), dtype=np.complex64)
+    cimg = np.empty(shape=(len(tifs), *img.shape[1: ]), dtype=np.complex64)
     cimg.real = img[::2, ...]
     cimg.imag = img[1::2, ...]
 
@@ -377,7 +378,7 @@ def read_s2_MA60_L1B(dir_path, verbose=False):
             
     return cimg
 
-    
+
 def read_csk_L1A_as_intensity(path, is_print=False):
     ''' Read cosmo-skymed signle polsarization SAR product, only a version is supported
     
@@ -796,8 +797,8 @@ def gray_by_intensity(data:np.ndarray, type='3sigma', if_log=True, if_mask=False
     gray = data.copy()
 
     # clip
-    gray[gray<1] = 1
-    # gray[gray<mathlib.eps] = mathlib.eps
+    # gray[gray<1] = 1
+    gray[gray<mathlib.eps] = mathlib.eps
 
     if type == '3sigma':
         mean = gray.mean()
