@@ -77,7 +77,7 @@ def flatten_dict(input:dict, parent_key='', sep='.')->dict:
     else:
         out = {}
         for k, v in input.items():
-            new_key = parent_key + sep + k if parent_key else k
+            new_key = str(parent_key) + sep + str(k) if parent_key else k
             if not isinstance(v, dict):
                 out.update({new_key: v})
             else:
