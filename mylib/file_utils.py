@@ -56,13 +56,14 @@ def replace_suffix(filename, suffix):
     return file_ + suffix
 
 
-def force_symlink(file1, file2):
+def write_symlink(file1, file2, force=False):
     ''' Create a symbolic link, if file2 exists, delete it first '''
     try:
         os.symlink(file1, file2)
     except OSError as e:
         if e.errno == errno.EEXIST:
-            os.remove(file2)
-            os.symlink(file1, file2)
+            if force:
+                os.remove(file2)
+                os.symlink(file1, file2)
         else:
             raise e
