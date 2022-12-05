@@ -65,7 +65,7 @@ def save_image_by_cv2(
     if img.dtype == np.uint8:
         new_img = img
 
-    elif img.dtype in (np.float32, np.float64, np.bool8):
+    elif if_norm or img.dtype in (np.float32, np.float64, np.bool8):
 
         # add a new axis for grayscale image
         img = img.astype(np.float32)
