@@ -6,6 +6,7 @@ Last Modified: 2021-11-25
 '''
 import os
 import os.path as osp
+import errno
 
 def mkdir_if_not_exist(path):  
     """Make a directory if it does not exist."""
@@ -47,3 +48,22 @@ def add_filename_suffix(filename, suffix):
     ''' Add a suffix to filename (right before the extension part) '''
     file_, ext = osp.splitext(filename)
     return file_ + suffix + ext
+
+
+def replace_suffix(filename, suffix):
+    ''' Replace the suffix of a filename '''
+    file_, ext = osp.splitext(filename)
+    return file_ + suffix
+
+
+def write_symlink(file1, file2, force=False):
+    ''' Create a symbolic link, if file2 exists, delete it first '''
+    try:
+        os.symlink(file1, file2)
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            if force:
+                os.remove(file2)
+                os.symlink(file1, file2)
+        else:
+            raise e
